@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 博客管理系统</title>
+    <link rel="stylesheet" href="/admin/assets/css/admin.css">
+</head>
+<body>
+    <div id="app">
+        <div class="admin-layout">
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>博客管理后台</h2>
+                </div>
+                <nav class="sidebar-nav">
+                    <a href="#" @click.prevent="navigateTo('dashboard')" :class="{ active: currentPage === 'dashboard' }">
+                        <span class="nav-text">数据概览</span>
+                    </a>
+                    <a href="#" @click.prevent="navigateTo('users')" :class="{ active: currentPage === 'users' }">
+                        <span class="nav-text">用户管理</span>
+                    </a>
+                    <a href="#" @click.prevent="navigateTo('review')" :class="{ active: currentPage === 'review' }">
+                        <span class="nav-text">内容审核</span>
+                    </a>
+                    <a href="#" @click.prevent="navigateTo('comments')" :class="{ active: currentPage === 'comments' }">
+                        <span class="nav-text">评论管理</span>
+                    </a>
+                    <a href="#" @click.prevent="navigateTo('notifications')" :class="{ active: currentPage === 'notifications' }">
+                        <span class="nav-text">通知管理</span>
+                    </a>
+                    <a href="#" @click.prevent="navigateTo('messages')" :class="{ active: currentPage === 'messages' }">
+                        <span class="nav-text">私信管理</span>
+                    </a>
+                    <a href="#" @click.prevent="navigateTo('statistics')" :class="{ active: currentPage === 'statistics' }">
+                        <span class="nav-text">数据统计</span>
+                    </a>
+                </nav>
+                <div class="sidebar-footer">
+                    <div class="admin-info">
+                        <div class="admin-avatar">
+                            <img :src="adminInfo.avatar || '/admin/assets/images/default-avatar.png'" alt="管理员头像">
+                        </div>
+                        <div class="admin-details">
+                            <div class="admin-name">{{ adminInfo.nickname || adminInfo.username }}</div>
+                            <div class="admin-role">{{ adminInfo.role === 'super_admin' ? '超级管理员' : '管理员' }}</div>
+                        </div>
+                    </div>
+                    <button @click="handleLogout" class="logout-btn">退出登录</button>
+                </div>
+            </aside>
+
+            <main class="main-content">
+                <header class="top-bar">
+                    <div class="breadcrumb">
+                        <span>{{ currentPageTitle }}</span>
+                    </div>
+                    <div class="top-bar-actions">
+                        <span class="current-time">{{ currentTime }}</span>
+                    </div>
+                </header>
+
+                <div class="content-area">
+                    <component :is="currentPageComponent"></component>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/admin/js/vue.js"></script>
+    <script src="/admin/js/axios-0.18.0.js"></script>
+    <script src="/admin/js/admin-api.js"></script>
+    <script src="/admin/js/admin-dashboard.js"></script>
+    <script src="/admin/js/admin-users.js"></script>
+    <script src="/admin/js/admin-review.js"></script>
+    <script src="/admin/js/admin-statistics.js"></script>
+    <script src="/admin/js/admin-notifications.js"></script>
+    <script src="/admin/js/admin-messages.js"></script>
+    <script src="/admin/js/admin-comments.js"></script>
+    <script src="/admin/js/admin-main.js"></script>
+</body>
+</html>

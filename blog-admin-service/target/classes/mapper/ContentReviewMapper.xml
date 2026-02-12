@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.blog.admin.mapper.ContentReviewMapper">
+
+    <!-- 分页查询内容审核列表 -->
+    <select id="selectContentReviewPage" resultType="com.blog.admin.entity.ContentReview">
+        SELECT * FROM content_review
+        WHERE 1=1
+        <if test="reviewStatus != null">
+            AND review_status = #{reviewStatus}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%') OR author_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>

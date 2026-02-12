@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 博客社区</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <a href="../../index.html">博客社区</a>
+            </div>
+            <div class="nav-menu">
+                <a href="../../index.html" class="nav-item">首页</a>
+                <a href="categories.html" class="nav-item">分类</a>
+                <a href="about.html" class="nav-item">关于</a>
+            </div>
+            <div class="nav-right">
+                <div class="search-box">
+                    <input type="text" placeholder="搜索文章..." id="searchInput">
+                    <button id="searchBtn">搜索</button>
+                </div>
+                <a href="login.html" class="nav-item login-btn active">登录</a>
+                <a href="register.html" class="nav-item register-btn">注册</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <main class="main-content">
+        <div class="container">
+            <div class="login-container">
+                <div class="login-card" id="loginApp">
+                    <h2 class="card-title">用户登录</h2>
+                    <form @submit.prevent="handleLogin">
+                        <div class="form-group">
+                            <label for="username">用户名</label>
+                            <input type="text" id="username" v-model="form.username" placeholder="请输入用户名" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">密码</label>
+                            <input type="password" id="password" v-model="form.password" placeholder="请输入密码" required>
+                        </div>
+                        <div class="form-options">
+                            <label class="checkbox">
+                                <input type="checkbox" v-model="form.remember"> 记住我
+                            </label>
+                            <a href="#" class="forgot-password">忘记密码？</a>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block" :disabled="loading">
+                            {{ loading ? '登录中...' : '登录' }}
+                        </button>
+                    </form>
+                    <div v-if="errorMessage" class="error-message">
+                        {{ errorMessage }}
+                    </div>
+                    <div class="login-footer">
+                        <p>还没有账号？<a href="register.html">立即注册</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>博客社区</h3>
+                    <p>一个基于Spring Cloud微服务的多用户博客社区平台</p>
+                </div>
+                <div class="footer-section">
+                    <h3>快速链接</h3>
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="categories.html">分类</a></li>
+                        <li><a href="about.html">关于</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>联系方式</h3>
+                    <p>邮箱: contact@blog.com</p>
+                    <p>微信: blog-community</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 博客社区 All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript文件 -->
+    <script src="../js/vue.js"></script>
+    <script src="../js/axios-0.18.0.js"></script>
+    <script>
+        axios.defaults.withCredentials = true;
+        new Vue({
+            el: '#loginApp',
+            data: {
+                form: {
+                    username: '',
+                    password: '',
+                    remember: false
+                },
+                loading: false,
+                errorMessage: ''
+            },
+            methods: {
+                async handleLogin() {
+                    this.loading = true;
+                    this.errorMessage = '';
+                    
+                    try {
+                        const response = await axios.post('http://localhost:8070/api/users/login', {
+                            username: this.form.username,
+                            password: this.form.password
+                        }, {
+                            withCredentials: true
+                        });
+                        
+                        if (response.data.token) {
+                            localStorage.setItem('token', response.data.token);
+                            localStorage.setItem('user', JSON.stringify(response.data.user));
+                            window.location.href = '../../index.html';
+                        } else {
+                            this.errorMessage = '登录失败：' + (response.data.message || '用户名或密码错误');
+                        }
+                    } catch (error) {
+                        console.error('登录过程中发生错误：', error);
+                        
+                        if (error.response) {
+                            const status = error.response.status;
+                            const data = error.response.data;
+                            
+                            if (status === 400) {
+                                if (data && data.message) {
+                                    this.errorMessage = data.message;
+                                } else {
+                                    this.errorMessage = '用户名或密码错误';
+                                }
+                            } else if (status === 401) {
+                                this.errorMessage = '用户名或密码错误';
+                            } else if (status === 404) {
+                                this.errorMessage = '用户名不存在';
+                            } else if (status === 500) {
+                                this.errorMessage = '服务器错误，请稍后重试';
+                            } else {
+                                this.errorMessage = '登录失败：' + (data && data.message ? data.message : '未知错误');
+                            }
+                        } else if (error.request) {
+                            this.errorMessage = '网络错误，请检查网络连接';
+                        } else {
+                            this.errorMessage = '登录失败：' + error.message;
+                        }
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

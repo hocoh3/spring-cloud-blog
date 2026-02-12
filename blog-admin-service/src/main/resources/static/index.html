@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员登录 - 博客管理后台</title>
+    <link rel="stylesheet" href="/admin/assets/css/admin.css">
+</head>
+<body>
+    <div id="app">
+        <div class="login-container">
+            <div class="login-box">
+                <div class="login-header">
+                    <h1>博客管理后台</h1>
+                    <p>管理员登录</p>
+                </div>
+                <form @submit.prevent="handleLogin" class="login-form">
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            v-model="loginForm.username" 
+                            placeholder="请输入用户名"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            v-model="loginForm.password" 
+                            placeholder="请输入密码"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="login-btn" :disabled="loading">
+                            {{ loading ? '登录中...' : '登录' }}
+                        </button>
+                    </div>
+                    <div v-if="errorMessage" class="error-message">
+                        {{ errorMessage }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/js/vue.js"></script>
+    <script src="/admin/js/axios-0.18.0.js"></script>
+    <script src="/admin/js/admin-api.js"></script>
+    <script src="/admin/js/admin-login.js"></script>
+</body>
+</html>

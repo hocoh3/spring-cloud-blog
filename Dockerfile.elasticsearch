@@ -1,0 +1,8 @@
+FROM docker.elastic.co/elasticsearch/elasticsearch:7.11.2
+
+COPY elasticsearch-analysis-ik-7.11.2.zip /tmp/
+
+RUN mkdir -p /usr/share/elasticsearch/plugins/ik && \
+    cd /tmp && \
+    unzip elasticsearch-analysis-ik-7.11.2.zip -d /usr/share/elasticsearch/plugins/ik && \
+    rm /tmp/elasticsearch-analysis-ik-7.11.2.zip

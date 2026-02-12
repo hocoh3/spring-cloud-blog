@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ article.title }} - 博客社区</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="container">
+                <div class="logo">
+                    <a href="../../index.html">博客社区</a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../index.html" class="nav-item">首页</a>
+                    <a href="categories.html" class="nav-item">分类</a>
+                    <a href="about.html" class="nav-item">关于</a>
+                </div>
+                <div class="nav-right">
+                    <div class="search-box">
+                        <input type="text" v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="handleSearch">
+                        <button @click="handleSearch">搜索</button>
+                    </div>
+                    <a v-if="!user" href="login.html" class="nav-item login-btn">登录</a>
+                    <a v-if="!user" href="register.html" class="nav-item register-btn">注册</a>
+                    <div v-if="user" class="user-menu">
+                        <span>{{ user.nickname || user.username }}</span>
+                        <a href="profile.html" class="nav-item">个人中心</a>
+                        <a @click="handleLogout" class="nav-item logout-btn">退出</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <div class="container">
+                <!-- 文章详情 -->
+                <div class="article-detail">
+                    <div v-if="loading" class="loading">加载中...</div>
+                    <div v-else-if="error" class="error-message">{{ error }}</div>
+                    <article v-else class="article-content">
+                        <div class="article-header">
+                            <h1 class="article-title">{{ article.title }}</h1>
+                            <div class="article-meta">
+                                <span class="author">作者: <a :href="'user.html?id=' + article.authorId">{{ article.authorName }}</a></span>
+                                <span class="category">分类: <a :href="'category.html?id=' + article.categoryId">{{ article.categoryName }}</a></span>
+                                <span class="date">{{ formatDate(article.createTime) }}</span>
+                                <span class="views">浏览量: {{ article.viewCount }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="article-body" v-html="article.content"></div>
+                        
+                        <div class="article-footer">
+                            <div class="article-tags">
+                                <span class="tags-label">标签：</span>
+                                <a v-for="tag in article.tags" :key="tag.id" :href="'tag.html?id=' + tag.id" class="tag">{{ tag.name }}</a>
+                            </div>
+                            
+                            <div class="article-actions">
+                                <button @click="handleLike" class="action-btn like-btn" :disabled="likeLoading">
+                                    <i class="icon-like"></i> <span class="count">{{ article.likeCount }}</span> {{ likeLoading ? '处理中...' : '点赞' }}
+                                </button>
+                                <button @click="handleFavorite" class="action-btn favorite-btn" :disabled="favoriteLoading">
+                                    <i class="icon-favorite"></i> <span class="count">{{ article.favoriteCount }}</span> {{ favoriteLoading ? '处理中...' : '收藏' }}
+                                </button>
+                                <button @click="handleShare" class="action-btn share-btn">
+                                    <i class="icon-share"></i> 分享
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+                    
+                    <!-- 评论区 -->
+                    <div class="comments-section">
+                        <h3 class="comments-title">评论 ({{ comments.length }})</h3>
+                        
+                        <!-- 评论表单 -->
+                        <div class="comment-form" v-if="user">
+                            <h4>发表评论</h4>
+                            <form @submit.prevent="handleSubmitComment">
+                                <div class="form-group">
+                                    <textarea v-model="commentForm.content" placeholder="请输入您的评论..." rows="4" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary" :disabled="commentLoading">
+                                    {{ commentLoading ? '发表中...' : '发表评论' }}
+                                </button>
+                            </form>
+                        </div>
+                        <div class="comment-form" v-else>
+                            <p>请<a href="login.html">登录</a>后发表评论</p>
+                        </div>
+                        
+                        <!-- 评论列表 -->
+                        <div class="comments-list">
+                            <div v-if="comments.length === 0" class="no-comments">暂无评论</div>
+                            <div v-for="comment in comments" :key="comment.id" class="comment-item">
+                                <div class="comment-avatar">
+                                    <img :src="getAvatarUrl(comment.avatar)" alt="用户头像">
+                                </div>
+                                <div class="comment-content">
+                                    <div class="comment-header">
+                                        <a :href="'user.html?id=' + comment.userId" class="comment-author">{{ comment.authorName }}</a>
+                                        <span class="comment-date">{{ formatDateTime(comment.createTime) }}</span>
+                                    </div>
+                                    <div class="comment-text">
+                                        {{ comment.content }}
+                                    </div>
+                                    <div class="comment-actions">
+                                        <a @click="handleReply(comment)" class="comment-reply">回复</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 评论分页 -->
+                        <div v-if="totalCommentPages > 1" class="comments-pagination">
+                            <a v-for="page in totalCommentPages" :key="page" 
+                               @click="loadComments(page)"
+                               :class="['page-btn', { active: currentCommentPage === page }]">
+                                {{ page }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 侧边栏 -->
+                <aside class="sidebar">
+                    <!-- 用户信息 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">欢迎访问</h3>
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <img :src="getAvatarUrl(user ? user.avatar : null)" alt="用户头像">
+                            </div>
+                            <p class="user-name">{{ user ? (user.nickname || user.username) : '未登录' }}</p>
+                            <div class="user-actions" v-if="!user">
+                                <a href="login.html" class="btn btn-primary">登录</a>
+                                <a href="register.html" class="btn btn-secondary">注册</a>
+                            </div>
+                            <div class="user-actions" v-else>
+                                <a href="profile.html" class="btn btn-primary">个人中心</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </aside>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <h3>博客社区</h3>
+                        <p>一个基于Spring Cloud微服务的多用户博客社区平台</p>
+                    </div>
+                    <div class="footer-section">
+                        <h3>快速链接</h3>
+                        <ul>
+                            <li><a href="../../index.html">首页</a></li>
+                            <li><a href="categories.html">分类</a></li>
+                            <li><a href="about.html">关于</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-section">
+                        <h3>联系方式</h3>
+                        <p>邮箱: contact@blog.com</p>
+                        <p>微信: blog-community</p>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2026 博客社区 All Rights Reserved.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Vue.js和axios -->
+    <script src="../js/vue.js"></script>
+    <script src="../js/axios-0.18.0.js"></script>
+    <script src="../js/websocket.js"></script>
+    <script>
+        axios.defaults.withCredentials = true;
+        new Vue({
+            el: '#app',
+            data: {
+                user: null,
+                searchQuery: '',
+                articleId: null,
+                article: {},
+                comments: [],
+                hotArticles: [],
+                categories: [],
+                tags: [],
+                loading: false,
+                error: '',
+                likeLoading: false,
+                favoriteLoading: false,
+                isLiked: false,
+                isFavorited: false,
+                commentLoading: false,
+                commentForm: {
+                    content: '',
+                    parentId: null
+                },
+                currentCommentPage: 1,
+                commentPageSize: 10,
+                totalCommentPages: 0
+            },
+            created() {
+                this.checkUserLogin();
+                this.getArticleIdFromUrl();
+                this.loadArticle();
+                this.loadComments();
+                this.setupWebSocket();
+            },
+            methods: {
+                checkUserLogin() {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) {
+                        this.user = JSON.parse(userStr);
+                    }
+                },
+                getAvatarUrl(avatar) {
+                    if (!avatar) {
+                        return 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'50\' height=\'50\' viewBox=\'0 0 50 50\'%3E%3Crect width=\'50\' height=\'50\' fill=\'%23e9ecef\'/%3E%3Ctext x=\'25\' y=\'25\' font-family=\'Arial\' font-size=\'20\' fill=\'%236c757d\' text-anchor=\'middle\' dy=\'.3em\'%3E%3F%3C/text%3E%3C/svg%3E';
+                    }
+                    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+                        return avatar;
+                    }
+                    return 'http://localhost:8070' + avatar;
+                },
+                getArticleIdFromUrl() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.articleId = urlParams.get('id');
+                },
+                handleSearch() {
+                    if (this.searchQuery.trim()) {
+                        window.location.href = 'search.html?q=' + encodeURIComponent(this.searchQuery);
+                    }
+                },
+                async loadArticle() {
+                    if (!this.articleId) {
+                        this.error = '文章ID不存在';
+                        return;
+                    }
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/articles/' + this.articleId);
+                        if (response.data) {
+                            this.article = response.data;
+                        }
+                        if (this.user) {
+                            await this.loadLikeStatus();
+                            await this.loadFavoriteStatus();
+                        }
+                    } catch (error) {
+                        console.error('加载文章失败:', error);
+                        this.error = '加载文章失败，请稍后重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async loadComments(page = 1) {
+                    this.currentCommentPage = page;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/interaction/comments/article/' + this.articleId, {
+                            params: {
+                                page: page,
+                                size: this.commentPageSize
+                            }
+                        });
+                        if (response.data && response.data.records) {
+                            this.comments = response.data.records;
+                            this.totalCommentPages = response.data.pages || 1;
+                        }
+                    } catch (error) {
+                        console.error('加载评论失败:', error);
+                    }
+                },
+                async loadLikeStatus() {
+                    if (!this.user || !this.articleId) return;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/article-likes/check', {
+                            params: {
+                                articleId: this.articleId,
+                                userId: this.user.id
+                            }
+                        });
+                        if (response.data) {
+                            this.isLiked = response.data.liked;
+                        }
+                    } catch (error) {
+                        console.error('加载点赞状态失败:', error);
+                    }
+                },
+                async loadFavoriteStatus() {
+                    if (!this.user || !this.articleId) return;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/article-favorites/check', {
+                            params: {
+                                articleId: this.articleId,
+                                userId: this.user.id
+                            }
+                        });
+                        if (response.data) {
+                            this.isFavorited = response.data.favorited;
+                        }
+                    } catch (error) {
+                        console.error('加载收藏状态失败:', error);
+                    }
+                },
+                async handleLike() {
+                    if (!this.user) {
+                        alert('请先登录');
+                        return;
+                    }
+                    this.likeLoading = true;
+                    try {
+                        let response;
+                        if (this.isLiked) {
+                            response = await axios.delete('http://localhost:8070/api/content/article-likes', {
+                                data: {
+                                    articleId: this.articleId,
+                                    userId: this.user.id
+                                }
+                            });
+                        } else {
+                            response = await axios.post('http://localhost:8070/api/content/article-likes', {
+                                articleId: this.articleId,
+                                userId: this.user.id
+                            });
+                        }
+                        if (response.data) {
+                            this.isLiked = response.data.liked;
+                            this.article.likeCount = response.data.likeCount;
+                        }
+                    } catch (error) {
+                        console.error('点赞失败:', error);
+                        alert('点赞失败，请稍后重试');
+                    } finally {
+                        this.likeLoading = false;
+                    }
+                },
+                async handleFavorite() {
+                    if (!this.user) {
+                        alert('请先登录');
+                        return;
+                    }
+                    this.favoriteLoading = true;
+                    try {
+                        let response;
+                        if (this.isFavorited) {
+                            response = await axios.delete('http://localhost:8070/api/content/article-favorites', {
+                                data: {
+                                    articleId: this.articleId,
+                                    userId: this.user.id
+                                }
+                            });
+                        } else {
+                            response = await axios.post('http://localhost:8070/api/content/article-favorites', {
+                                articleId: this.articleId,
+                                userId: this.user.id
+                            });
+                        }
+                        if (response.data) {
+                            this.isFavorited = response.data.favorited;
+                            this.article.favoriteCount = response.data.favoriteCount;
+                        }
+                    } catch (error) {
+                        console.error('收藏失败:', error);
+                        alert('收藏失败，请稍后重试');
+                    } finally {
+                        this.favoriteLoading = false;
+                    }
+                },
+                handleShare() {
+                    const url = window.location.href;
+                    if (navigator.share) {
+                        navigator.share({
+                            title: this.article.title,
+                            url: url
+                        });
+                    } else {
+                        navigator.clipboard.writeText(url).then(() => {
+                            alert('链接已复制到剪贴板');
+                        });
+                    }
+                },
+                async handleSubmitComment() {
+                    if (!this.commentForm.content.trim()) {
+                        alert('请输入评论内容');
+                        return;
+                    }
+                    this.commentLoading = true;
+                    try {
+                        const response = await axios.post('http://localhost:8070/api/interaction/comments', {
+                            articleId: this.articleId,
+                            content: this.commentForm.content,
+                            userId: this.user ? this.user.id : null,
+                            parentId: this.commentForm.parentId
+                        }, {
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            this.commentForm.content = '';
+                            this.commentForm.parentId = null;
+                            this.loadComments(1);
+                        }
+                    } catch (error) {
+                        console.error('发表评论失败:', error);
+                        alert('发表评论失败，请稍后重试');
+                    } finally {
+                        this.commentLoading = false;
+                    }
+                },
+                setupWebSocket() {
+                    if (this.user && this.user.id) {
+                        wsClient.connect(this.user.id);
+                        wsClient.addListener('message', this.handleWebSocketMessage);
+                    }
+                },
+                handleWebSocketMessage(message) {
+                    console.log('收到WebSocket消息:', message);
+                    if (message.type === 'notification') {
+                        const notification = message.data;
+                        console.log('收到通知:', notification);
+                        this.showNotificationToast(notification);
+                    }
+                },
+                showNotificationToast(notification) {
+                    const toast = document.createElement('div');
+                    toast.className = 'notification-toast';
+                    toast.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: white;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                        padding: 16px;
+                        z-index: 10000;
+                        max-width: 350px;
+                        animation: slideIn 0.3s ease-out;
+                    `;
+                    toast.innerHTML = `
+                        <div style="display: flex; align-items: start; gap: 12px;">
+                            <div style="font-size: 24px;">🔔</div>
+                            <div style="flex: 1;">
+                                <div style="font-weight: bold; margin-bottom: 4px;">${notification.title}</div>
+                                <div style="color: #666; font-size: 14px;">${notification.content}</div>
+                            </div>
+                            <button style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0;">&times;</button>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(toast);
+                    
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        @keyframes slideIn {
+                            from { transform: translateX(400px); opacity: 0; }
+                            to { transform: translateX(0); opacity: 1; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                    
+                    const closeBtn = toast.querySelector('button');
+                    closeBtn.onclick = () => {
+                        toast.remove();
+                    };
+                    
+                    setTimeout(() => {
+                        toast.style.opacity = '0';
+                        toast.style.transform = 'translateX(400px)';
+                        toast.style.transition = 'all 0.3s ease-out';
+                        setTimeout(() => toast.remove(), 300);
+                    }, 5000);
+                },
+                handleReply(comment) {
+                    this.commentForm.parentId = comment.id;
+                    this.commentForm.content = '@' + comment.authorName + ' ';
+                    document.querySelector('.comment-form textarea').focus();
+                },
+                handleLogout() {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    this.user = null;
+                    window.location.reload();
+                },
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN');
+                },
+                formatDateTime(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleString('zh-CN');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

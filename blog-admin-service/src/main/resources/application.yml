@@ -1,0 +1,51 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: admin-service
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/blog_admin?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+  main:
+    allow-bean-definition-overriding: true
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.blog.admin.entity
+
+# Eureka配置
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    instance-id: ${spring.application.name}:${server.port}
+    prefer-ip-address: true
+
+# OpenFeign配置
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+
+# JWT配置
+jwt:
+  secret: spring-cloud-blog-jwt-secret-key-2024-spring-cloud-blog-jwt-secret-key-2024-spring-cloud-blog-jwt-secret-key-2024
+  expiration: 86400 # 24小时
+
+# 日志配置
+logging:
+  level:
+    com.blog: debug
+    feign: debug

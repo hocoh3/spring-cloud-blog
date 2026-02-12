@@ -1,0 +1,109 @@
+server:
+  port: 8070
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lowerCaseServiceId: true
+      routes:
+        # 用户服务路由
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
+
+        # Redis测试路由
+        - id: redis-test
+          uri: lb://user-service
+          predicates:
+            - Path=/api/redis/**
+          filters:
+            - StripPrefix=1
+
+        # 用户服务静态资源路由
+        - id: user-service-uploads
+          uri: lb://user-service
+          predicates:
+            - Path=/uploads/**
+
+        # 用户服务前端路由
+        - id: user-service-static
+          uri: lb://user-service
+          predicates:
+            - Path=/src/**
+
+        # 内容服务路由
+        - id: content-service
+          uri: lb://content-service
+          predicates:
+            - Path=/api/content/**
+          filters:
+            - StripPrefix=2
+
+        # 交互服务路由（评论、通知、私信）
+        - id: interaction-service
+          uri: lb://interaction-service
+          predicates:
+            - Path=/api/interaction/**
+          filters:
+            - StripPrefix=2
+
+        # 通知服务路由
+        - id: notification-service
+          uri: lb://interaction-service
+          predicates:
+            - Path=/api/notification/**
+          filters:
+            - StripPrefix=1
+
+        # 私信服务路由
+        - id: message-service
+          uri: lb://interaction-service
+          predicates:
+            - Path=/api/message/**
+          filters:
+            - StripPrefix=1
+
+        # WebSocket路由
+        - id: websocket-notification
+          uri: lb://interaction-service
+          predicates:
+            - Path=/ws/notification/**
+
+        # 数据服务路由（缓存、会话、排行榜、聚合）
+        - id: data-service
+          uri: lb://data-service
+          predicates:
+            - Path=/api/data/**
+          filters:
+            - StripPrefix=2
+
+        # 搜索服务路由
+        - id: search-service
+          uri: lb://blog-search-service
+          predicates:
+            - Path=/api/search/**
+          filters:
+            - StripPrefix=2
+
+# Eureka配置
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    preferIpAddress: true
+
+# 启用所有监控端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 博客平台</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 头部导航 -->
+        <header class="header">
+            <div class="container">
+                <div class="logo">
+                    <a href="../../index.html">博客平台</a>
+                </div>
+                <nav class="nav">
+                    <div style="width: 1200px;margin: 0 auto;">
+                        <a href="../../index.html">首页</a>
+                        <el-divider direction="vertical"></el-divider>
+                        <a href="categories.html">分类</a>
+                        <el-divider direction="vertical"></el-divider>
+                        <a href="about.html">关于</a>
+                        <el-divider direction="vertical"></el-divider>
+                    </div>
+                </nav>
+                <div class="search-box" style="float: right;margin-top: 10px">
+                    <input type="text"  v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="handleSearch">
+                    <button @click="handleSearch">搜索</button>
+                </div>
+                <div class="user-section">
+                    <a v-if="!user" href="login.html" class="login-btn">登录</a>
+                    <a v-if="!user" href="register.html" class="register-btn">注册</a>
+                    <div v-if="user" class="user-info">
+                        <div class="user-name">{{ user.nickname || user.username }}</div>
+                        <div class="user-avatar">
+                            <img :src="getAvatarUrl(user.avatar)" alt="用户头像">
+                        </div>
+                        <div class="user-actions">
+                            <a href="profile.html" class="nav-item">个人中心</a>
+                            <a @click="handleLogout" class="nav-item logout-btn">退出</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容 -->
+        <main class="main">
+            <div class="container">
+                <div class="content">
+                    <div v-if="loading" class="loading">加载中...</div>
+                    <div v-else-if="error" class="error-message">{{ error }}</div>
+                    <div v-else>
+                        <div class="profile-container">
+                            <div class="profile-header">
+                                <div class="profile-avatar">
+                                <img :src="getAvatarUrl(profile.avatar)" alt="用户头像" width="100">
+                                <button @click="triggerAvatarUpload" class="upload-avatar-btn">更换头像</button>
+                                <input type="file" ref="avatarInput" @change="handleAvatarUpload" accept="image/*" style="display: none;">
+                            </div>
+                                <div class="profile-info">
+                                    <h1 class="profile-name">{{ profile.nickname || profile.username }}</h1>
+                                    <p class="profile-email">{{ profile.email }}</p>
+                                    <p class="profile-bio">{{ profile.bio || '这个人很懒，还没有填写个人简介' }}</p>
+                                    <div class="profile-stats">
+                                        <div class="stat-item">
+                                            <span class="stat-value">{{ profile.articleCount || 0 }}</span>
+                                            <span class="stat-label">文章</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-value">{{ profile.viewCount || 0 }}</span>
+                                            <span class="stat-label">浏览</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-value">{{ profile.likeCount || 0 }}</span>
+                                            <span class="stat-label">获赞</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="profile-actions">
+                            <button @click="showEditForm = !showEditForm" class="btn btn-primary">
+                                {{ showEditForm ? '取消编辑' : '编辑个人信息' }}
+                            </button>
+                            <button @click="showCreateForm = !showCreateForm" class="btn btn-success">
+                                {{ showCreateForm ? '取消创建' : '创建文章' }}
+                            </button>
+                        </div>
+
+                        <!-- 个人信息编辑表单 -->
+                        <div v-if="showEditForm" class="edit-form">
+                            <h2>编辑个人信息</h2>
+                            <form @submit.prevent="handleUpdateProfile">
+                                <div class="form-group">
+                                    <label for="editNickname">昵称:</label>
+                                    <input type="text" id="editNickname" v-model="editForm.nickname" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="editEmail">邮箱:</label>
+                                    <input type="email" id="editEmail" v-model="editForm.email" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="editBio">个人简介:</label>
+                                    <textarea id="editBio" v-model="editForm.bio" rows="4"></textarea>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary" :disabled="updateLoading">
+                                        {{ updateLoading ? '保存中...' : '保存' }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- 创建文章表单 -->
+                        <div v-if="showCreateForm" class="edit-form">
+                            <h2>创建文章</h2>
+                            <form @submit.prevent="handleCreateArticle">
+                                <div class="form-group">
+                                    <label for="articleTitle">标题:</label>
+                                    <input type="text" id="articleTitle" v-model="createArticleForm.title" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="articleSummary">摘要:</label>
+                                    <textarea id="articleSummary" v-model="createArticleForm.summary" rows="3" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="articleContent">内容:</label>
+                                    <textarea id="articleContent" v-model="createArticleForm.content" rows="10" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="articleCategoryId">分类:</label>
+                                    <select id="articleCategoryId" v-model="createArticleForm.categoryId" required>
+                                        <option value="">请选择分类</option>
+                                        <option v-for="(category, index) in categories" :key="category ? category.id : 'category-null-' + index" :value="category ? category.id : ''">
+                                            {{ category ? category.name : '' }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-success" :disabled="createLoading">
+                                        {{ createLoading ? '创建中...' : '创建' }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="profile-tabs">
+                            <button @click="currentTab = 'articles'" :class="['tab-btn', { active: currentTab === 'articles' }]">我的文章</button>
+                            <button @click="currentTab = 'likes'" :class="['tab-btn', { active: currentTab === 'likes' }]">我的点赞</button>
+                            <button @click="currentTab = 'favorites'" :class="['tab-btn', { active: currentTab === 'favorites' }]">我的收藏</button>
+                        </div>
+
+                        <div class="profile-section">
+                            <h2 v-if="currentTab === 'articles'">我的文章</h2>
+                            <h2 v-if="currentTab === 'likes'">我的点赞</h2>
+                            <h2 v-if="currentTab === 'favorites'">我的收藏</h2>
+
+                            <div v-if="currentTab === 'articles'">
+                                <div v-if="articlesLoading" class="loading">加载文章中...</div>
+                                <div v-else-if="articles.length === 0" class="no-articles">暂无文章</div>
+                                <div v-else class="profile-articles articles-container">
+                                    <article v-for="(article, index) in articles" :key="article ? article.id : 'article-null-' + index" class="article-item" v-if="article">
+                                        <div class="article-header">
+                                            <h3 class="article-title">
+                                                <a :href="'article.html?id=' + article.id">{{ article.title }}</a>
+                                            </h3>
+                                            <div class="article-meta">
+                                                <span class="status-badge" :class="'status-' + article.status">
+                                                    {{ getStatusText(article.status) }}
+                                                </span>
+                                                <span class="date">{{ formatDate(article.createTime) }}</span>
+                                                <span class="views">浏览量: {{ article.viewCount }}</span>
+                                                <span class="comments">评论: {{ article.commentCount }}</span>
+                                                <span class="likes">点赞: {{ article.likeCount }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="article-content">
+                                            <p>{{ article.summary }}</p>
+                                        </div>
+                                        <div class="article-footer">
+                                            <a :href="'article.html?id=' + article.id" class="read-more">阅读全文</a>
+                                            <div class="article-actions">
+                                                <button v-if="article.status === 0" @click="handlePublishArticle(article.id)" class="btn btn-success publish-btn" :disabled="publishLoading">
+                                                    {{ publishLoading ? '提交中...' : '提交审核' }}
+                                                </button>
+                                                <button v-if="article.status === 1" @click="handleUnpublishArticle(article.id)" class="btn btn-warning unpublish-btn" :disabled="unpublishLoading">
+                                                    {{ unpublishLoading ? '撤回中...' : '撤回审核' }}
+                                                </button>
+                                                <button v-if="article.status === 3" @click="handlePublishArticle(article.id)" class="btn btn-success publish-btn" :disabled="publishLoading">
+                                                    {{ publishLoading ? '提交中...' : '重新提交' }}
+                                                </button>
+                                                <button @click="handleDeleteArticle(article.id)" class="btn btn-danger delete-btn" :disabled="deleteLoading">
+                                                    {{ deleteLoading ? '删除中...' : '删除' }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+
+                            <div v-if="currentTab === 'likes'">
+                                <div v-if="likesLoading" class="loading">加载点赞中...</div>
+                                <div v-else-if="likedArticles.length === 0" class="no-articles">暂无点赞</div>
+                                <div v-else class="profile-articles articles-container">
+                                    <article v-for="(article, index) in likedArticles" :key="article ? article.id : 'liked-null-' + index" class="article-item" v-if="article">
+                                        <div class="article-header">
+                                            <h3 class="article-title">
+                                                <a :href="'article.html?id=' + article.id">{{ article.title }}</a>
+                                            </h3>
+                                            <div class="article-meta">
+                                                <span class="date">{{ formatDate(article.createTime) }}</span>
+                                                <span class="views">浏览量: {{ article.viewCount }}</span>
+                                                <span class="comments">评论: {{ article.commentCount }}</span>
+                                                <span class="likes">点赞: {{ article.likeCount }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="article-content">
+                                            <p>{{ article.summary }}</p>
+                                        </div>
+                                        <div class="article-footer">
+                                            <a :href="'article.html?id=' + article.id" class="read-more">阅读全文</a>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+
+                            <div v-if="currentTab === 'favorites'">
+                                <div v-if="favoritesLoading" class="loading">加载收藏中...</div>
+                                <div v-else-if="favoriteArticles.length === 0" class="no-articles">暂无收藏</div>
+                                <div v-else class="profile-articles articles-container">
+                                    <article v-for="(article, index) in favoriteArticles" :key="article ? article.id : 'favorite-null-' + index" class="article-item" v-if="article">
+                                        <div class="article-header">
+                                            <h3 class="article-title">
+                                                <a :href="'article.html?id=' + article.id">{{ article.title }}</a>
+                                            </h3>
+                                            <div class="article-meta">
+                                                <span class="date">{{ formatDate(article.createTime) }}</span>
+                                                <span class="views">浏览量: {{ article.viewCount }}</span>
+                                                <span class="comments">评论: {{ article.commentCount }}</span>
+                                                <span class="likes">点赞: {{ article.likeCount }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="article-content">
+                                            <p>{{ article.summary }}</p>
+                                        </div>
+                                        <div class="article-footer">
+                                            <a :href="'article.html?id=' + article.id" class="read-more">阅读全文</a>
+                                            <button @click="handleRemoveFavorite(article.id)" class="btn btn-danger delete-btn" :disabled="removeFavoriteLoading">
+                                                {{ removeFavoriteLoading ? '取消收藏中...' : '取消收藏' }}
+                                            </button>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="container">
+                <p>&copy; 2024 博客平台. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="../js/vue.js"></script>
+    <script src="../js/axios-0.18.0.js"></script>
+    <script>
+        axios.defaults.withCredentials = true;
+        new Vue({
+            el: '#app',
+            data: {
+                user: null,
+                searchQuery: '',
+                profile: {},
+                articles: [],
+                likedArticles: [],
+                favoriteArticles: [],
+                loading: false,
+                error: '',
+                articlesLoading: false,
+                likesLoading: false,
+                favoritesLoading: false,
+                showEditForm: false,
+                showCreateForm: false,
+                updateLoading: false,
+                deleteLoading: false,
+                publishLoading: false,
+                unpublishLoading: false,
+                createLoading: false,
+                removeFavoriteLoading: false,
+                avatarUploading: false,
+                currentTab: 'articles',
+                categories: [],
+                editForm: {
+                    nickname: '',
+                    email: '',
+                    bio: ''
+                },
+                createArticleForm: {
+                    title: '',
+                    summary: '',
+                    content: '',
+                    categoryId: null
+                }
+            },
+            created() {
+                this.checkUserLogin();
+                if (this.user) {
+                    this.loadProfile();
+                    this.loadCategories();
+                    this.loadArticles();
+                    this.loadLikedArticles();
+                    this.loadFavoriteArticles();
+                } else {
+                    this.error = '请先登录';
+                }
+            },
+            methods: {
+                checkUserLogin() {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) {
+                        this.user = JSON.parse(userStr);
+                    }
+                },
+                getAvatarUrl(avatar) {
+                    if (!avatar) {
+                        return 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'150\' height=\'150\' viewBox=\'0 0 150 150\'%3E%3Crect width=\'150\' height=\'150\' fill=\'%23e9ecef\'/%3E%3Ctext x=\'75\' y=\'75\' font-family=\'Arial\' font-size=\'60\' fill=\'%236c757d\' text-anchor=\'middle\' dy=\'.3em\'%3E%3F%3C/text%3E%3C/svg%3E';
+                    }
+                    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+                        return avatar;
+                    }
+                    return 'http://localhost:8070' + avatar;
+                },
+                handleSearch() {
+                    if (this.searchQuery.trim()) {
+                        window.location.href = 'search.html?q=' + encodeURIComponent(this.searchQuery);
+                    }
+                },
+                handleLogout() {
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                    this.user = null;
+                    window.location.href = 'login.html';
+                },
+                async loadProfile() {
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/users/' + this.user.id, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            this.profile = response.data;
+                            this.editForm = {
+                                nickname: response.data.nickname || response.data.username,
+                                email: response.data.email,
+                                bio: response.data.bio || ''
+                            };
+                        }
+                    } catch (error) {
+                        console.error('加载用户信息失败:', error);
+                        this.error = '加载用户信息失败，请稍后重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async loadCategories() {
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/categories', {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        console.log('分类数据:', response.data);
+                        if (response.data) {
+                            if (response.data.records) {
+                                this.categories = response.data.records;
+                            } else if (Array.isArray(response.data)) {
+                                this.categories = response.data;
+                            } else {
+                                this.categories = [];
+                            }
+                        }
+                    } catch (error) {
+                        console.error('加载分类失败:', error);
+                        this.categories = [];
+                    }
+                },
+                async loadArticles() {
+                    this.articlesLoading = true;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/articles/user/' + this.user.id, {
+                            withCredentials: true,
+                            params: {
+                                page: 1,
+                                size: 10
+                            },
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data && response.data.records) {
+                            this.articles = response.data.records;
+                        } else if (response.data) {
+                            this.articles = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载文章失败:', error);
+                    } finally {
+                        this.articlesLoading = false;
+                    }
+                },
+                async loadLikedArticles() {
+                    this.likesLoading = true;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/article-likes/user/' + this.user.id, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            this.likedArticles = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载点赞失败:', error);
+                    } finally {
+                        this.likesLoading = false;
+                    }
+                },
+                async loadFavoriteArticles() {
+                    this.favoritesLoading = true;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/article-favorites/user/' + this.user.id, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            this.favoriteArticles = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载收藏失败:', error);
+                    } finally {
+                        this.favoritesLoading = false;
+                    }
+                },
+                async handleRemoveFavorite(articleId) {
+                    if (!confirm('确定要取消收藏这篇文章吗？')) {
+                        return;
+                    }
+                    this.removeFavoriteLoading = true;
+                    try {
+                        await axios.delete('http://localhost:8070/api/content/article-favorites', {
+                            withCredentials: true,
+                            data: {
+                                articleId: articleId,
+                                userId: this.user.id
+                            },
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        this.favoriteArticles = this.favoriteArticles.filter(article => article.id !== articleId);
+                        alert('取消收藏成功');
+                    } catch (error) {
+                        console.error('取消收藏失败:', error);
+                        alert('取消收藏失败，请稍后重试');
+                    } finally {
+                        this.removeFavoriteLoading = false;
+                    }
+                },
+                async handleUpdateProfile() {
+                    this.updateLoading = true;
+                    try {
+                        const response = await axios.put('http://localhost:8070/api/users/' + this.user.id, this.editForm, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            this.profile = { ...this.profile, ...this.editForm };
+                            localStorage.setItem('user', JSON.stringify(this.profile));
+                            this.showEditForm = false;
+                            alert('个人信息更新成功');
+                        }
+                    } catch (error) {
+                        console.error('更新个人信息失败:', error);
+                        alert('更新个人信息失败，请稍后重试');
+                    } finally {
+                        this.updateLoading = false;
+                    }
+                },
+                async handleDeleteArticle(articleId) {
+                    if (!confirm('确定要删除这篇文章吗？')) {
+                        return;
+                    }
+                    this.deleteLoading = true;
+                    try {
+                        await axios.delete('http://localhost:8070/api/content/articles/' + articleId, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        this.articles = this.articles.filter(article => article.id !== articleId);
+                        this.profile.articleCount = (this.profile.articleCount || 0) - 1;
+                        alert('文章删除成功');
+                    } catch (error) {
+                        console.error('删除文章失败:', error);
+                        alert('删除文章失败，请稍后重试');
+                    } finally {
+                        this.deleteLoading = false;
+                    }
+                },
+                async handlePublishArticle(articleId) {
+                    if (!confirm('确定要提交这篇文章进行审核吗？')) {
+                        return;
+                    }
+                    this.publishLoading = true;
+                    try {
+                        const response = await axios.post('http://localhost:8070/api/content/articles/' + articleId + '/submit-review', {}, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            const article = this.articles.find(a => a.id === articleId);
+                            if (article) {
+                                article.status = 1;
+                            }
+                            alert('文章已提交审核');
+                        }
+                    } catch (error) {
+                        console.error('提交审核失败:', error);
+                        alert('提交审核失败，请稍后重试');
+                    } finally {
+                        this.publishLoading = false;
+                    }
+                },
+                async handleUnpublishArticle(articleId) {
+                    if (!confirm('确定要撤回这篇文章的审核吗？')) {
+                        return;
+                    }
+                    this.unpublishLoading = true;
+                    try {
+                        const response = await axios.post('http://localhost:8070/api/content/articles/' + articleId + '/unpublish', {}, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            const article = this.articles.find(a => a.id === articleId);
+                            if (article) {
+                                article.status = 0;
+                            }
+                            alert('文章已撤回审核');
+                        }
+                    } catch (error) {
+                        console.error('撤回审核失败:', error);
+                        alert('撤回审核失败，请稍后重试');
+                    } finally {
+                        this.unpublishLoading = false;
+                    }
+                },
+                async handleCreateArticle() {
+                    this.createLoading = true;
+                    try {
+                        const articleData = {
+                            ...this.createArticleForm,
+                            userId: this.user.id,
+                            status: 0
+                        };
+                        const response = await axios.post('http://localhost:8070/api/content/articles', articleData, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            this.articles.unshift(response.data);
+                            this.profile.articleCount = (this.profile.articleCount || 0) + 1;
+                            this.showCreateForm = false;
+                            this.createArticleForm = {
+                                title: '',
+                                summary: '',
+                                content: '',
+                                categoryId: null,
+                                coverImage: ''
+                            };
+                            alert('文章创建成功（草稿状态）');
+                        }
+                    } catch (error) {
+                        console.error('创建文章失败:', error);
+                        alert('创建文章失败，请稍后重试');
+                    } finally {
+                        this.createLoading = false;
+                    }
+                },
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                },
+                getStatusText(status) {
+                    const statusMap = {
+                        0: '草稿',
+                        1: '待审核',
+                        2: '已发布',
+                        3: '已拒绝'
+                    };
+                    return statusMap[status] || '未知';
+                },
+                triggerAvatarUpload() {
+                    this.$refs.avatarInput.click();
+                },
+                async handleAvatarUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        return;
+                    }
+
+                    if (!file.type.startsWith('image/')) {
+                        alert('请选择图片文件');
+                        return;
+                    }
+
+                    if (file.size > 2 * 1024 * 1024) {
+                        alert('图片大小不能超过2MB');
+                        return;
+                    }
+
+                    this.avatarUploading = true;
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        const response = await axios.post('http://localhost:8070/api/users/' + this.user.id + '/avatar', formData, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                                'Content-Type': 'multipart/form-data'
+                            }
+                        });
+
+                        if (response.data && response.data.success) {
+                            this.profile.avatar = response.data.avatarUrl;
+                            this.user.avatar = response.data.avatarUrl;
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                            alert('头像上传成功');
+                        } else {
+                            alert('头像上传失败');
+                        }
+                    } catch (error) {
+                        console.error('头像上传失败:', error);
+                        if (error.response && error.response.data && error.response.data.message) {
+                            alert('头像上传失败: ' + error.response.data.message);
+                        } else {
+                            alert('头像上传失败，请稍后重试');
+                        }
+                    } finally {
+                        this.avatarUploading = false;
+                        event.target.value = '';
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

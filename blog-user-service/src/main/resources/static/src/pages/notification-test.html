@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通知测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #66ccff 0%, #39c5bb 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .log-container {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .log-entry .timestamp {
+            color: #6c757d;
+            margin-right: 10px;
+        }
+
+        .log-entry .type {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .log-entry .type.info {
+            color: #17a2b8;
+        }
+
+        .log-entry .type.success {
+            color: #28a745;
+        }
+
+        .log-entry .type.error {
+            color: #dc3545;
+        }
+
+        .notification-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .notification-item.unread {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .notification-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .notification-content {
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .notification-time {
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket 通知测试页面</h1>
+
+        <div class="section">
+            <h2>连接状态</h2>
+            <div id="connectionStatus" class="status disconnected">未连接</div>
+        </div>
+
+        <div class="section">
+            <h2>发送通知</h2>
+            <div class="form-group">
+                <label>接收用户ID</label>
+                <input type="number" id="userId" value="1" placeholder="输入接收通知的用户ID">
+            </div>
+            <div class="form-group">
+                <label>通知类型</label>
+                <select id="notificationType">
+                    <option value="1">评论通知</option>
+                    <option value="2">点赞通知</option>
+                    <option value="3">文章通知</option>
+                    <option value="4">系统通知</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>通知标题</label>
+                <input type="text" id="notificationTitle" placeholder="输入通知标题">
+            </div>
+            <div class="form-group">
+                <label>通知内容</label>
+                <textarea id="notificationContent" placeholder="输入通知内容"></textarea>
+            </div>
+            <div class="form-group">
+                <label>关联ID（可选）</label>
+                <input type="number" id="relatedId" placeholder="输入关联的文章或评论ID">
+            </div>
+            <button onclick="sendNotification()">发送通知</button>
+        </div>
+
+        <div class="section">
+            <h2>接收到的通知</h2>
+            <div id="notifications"></div>
+        </div>
+
+        <div class="section">
+            <h2>连接日志</h2>
+            <div id="logContainer" class="log-container"></div>
+        </div>
+    </div>
+
+    <script src="src/js/vue.js"></script>
+    <script src="src/js/axios-0.18.0.js"></script>
+    <script src="src/js/websocket.js"></script>
+    <script>
+        let currentUserId = null;
+        let notifications = [];
+
+        function addLog(type, message) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <span class="timestamp">[${timestamp}]</span>
+                <span class="type ${type}">${type.toUpperCase()}</span>
+                <span class="message">${message}</span>
+            `;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function updateConnectionStatus(status) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.className = `status ${status}`;
+            switch (status) {
+                case 'connected':
+                    statusElement.textContent = '已连接';
+                    break;
+                case 'disconnected':
+                    statusElement.textContent = '未连接';
+                    break;
+                case 'connecting':
+                    statusElement.textContent = '连接中...';
+                    break;
+            }
+        }
+
+        function connectWebSocket() {
+            const userId = document.getElementById('userId').value;
+            if (!userId) {
+                alert('请输入用户ID');
+                return;
+            }
+
+            currentUserId = userId;
+            updateConnectionStatus('connecting');
+            addLog('info', `正在连接 WebSocket，用户ID: ${userId}`);
+
+            wsClient.connect(userId);
+        }
+
+        function sendNotification() {
+            const userId = document.getElementById('userId').value;
+            const type = document.getElementById('notificationType').value;
+            const title = document.getElementById('notificationTitle').value;
+            const content = document.getElementById('notificationContent').value;
+            const relatedId = document.getElementById('relatedId').value;
+
+            if (!userId || !title || !content) {
+                alert('请填写必要信息');
+                return;
+            }
+
+            const notification = {
+                userId: parseInt(userId),
+                type: parseInt(type),
+                title: title,
+                content: content,
+                relatedId: relatedId ? parseInt(relatedId) : null
+            };
+
+            addLog('info', `发送通知: ${JSON.stringify(notification)}`);
+
+            axios.post('http://localhost:8070/api/notification/send', notification)
+                .then(response => {
+                    addLog('success', '通知发送成功');
+                    document.getElementById('notificationTitle').value = '';
+                    document.getElementById('notificationContent').value = '';
+                })
+                .catch(error => {
+                    addLog('error', `通知发送失败: ${error.message}`);
+                });
+        }
+
+        function displayNotification(notification) {
+            const notificationsDiv = document.getElementById('notifications');
+            const notificationItem = document.createElement('div');
+            notificationItem.className = 'notification-item unread';
+            notificationItem.innerHTML = `
+                <div class="notification-title">${notification.title}</div>
+                <div class="notification-content">${notification.content}</div>
+                <div class="notification-time">${new Date(notification.createTime).toLocaleString('zh-CN')}</div>
+            `;
+            notificationsDiv.insertBefore(notificationItem, notificationsDiv.firstChild);
+            notifications.unshift(notification);
+            addLog('success', `收到通知: ${notification.title}`);
+        }
+
+        wsClient.addListener('connected', () => {
+            updateConnectionStatus('connected');
+            addLog('success', 'WebSocket 连接成功');
+        });
+
+        wsClient.addListener('message', (message) => {
+            displayNotification(message);
+        });
+
+        wsClient.addListener('error', (error) => {
+            addLog('error', `WebSocket 错误: ${JSON.stringify(error)}`);
+        });
+
+        wsClient.addListener('closed', () => {
+            updateConnectionStatus('disconnected');
+            addLog('info', 'WebSocket 连接关闭');
+        });
+
+        wsClient.addListener('maxReconnectAttemptsReached', () => {
+            addLog('error', '达到最大重连次数，停止重连');
+        });
+
+        window.onload = () => {
+            addLog('info', '页面加载完成');
+            const user = localStorage.getItem('user');
+            if (user) {
+                const userData = JSON.parse(user);
+                document.getElementById('userId').value = userData.id;
+                connectWebSocket();
+            }
+        };
+    </script>
+</body>
+</html>

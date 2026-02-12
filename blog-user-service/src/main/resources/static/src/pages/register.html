@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 博客社区</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <a href="../../index.html">博客社区</a>
+            </div>
+            <div class="nav-menu">
+                <a href="../../index.html" class="nav-item">首页</a>
+                <a href="categories.html" class="nav-item">分类</a>
+                <a href="about.html" class="nav-item">关于</a>
+            </div>
+            <div class="nav-right">
+                <div class="search-box">
+                    <input type="text" placeholder="搜索文章..." id="searchInput">
+                    <button id="searchBtn">搜索</button>
+                </div>
+                <a href="login.html" class="nav-item login-btn">登录</a>
+                <a href="register.html" class="nav-item register-btn active">注册</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <main class="main-content">
+        <div class="container">
+            <div class="login-container">
+                <div class="login-card" id="registerApp">
+                    <h2 class="card-title">用户注册</h2>
+                    <form @submit.prevent="handleRegister">
+                        <div class="form-group">
+                            <label for="username">用户名</label>
+                            <input type="text" id="username" v-model="form.username" placeholder="请输入用户名" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">邮箱</label>
+                            <input type="email" id="email" v-model="form.email" placeholder="请输入邮箱" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">密码</label>
+                            <input type="password" id="password" v-model="form.password" placeholder="请输入密码" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword">确认密码</label>
+                            <input type="password" id="confirmPassword" v-model="form.confirmPassword" placeholder="请再次输入密码" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="nickname">昵称</label>
+                            <input type="text" id="nickname" v-model="form.nickname" placeholder="请输入昵称" required>
+                        </div>
+                        <div class="form-options">
+                            <label class="checkbox">
+                                <input type="checkbox" v-model="form.agree" required> 我已阅读并同意<a href="#">用户协议</a>和<a href="#">隐私政策</a>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block" :disabled="loading">
+                            {{ loading ? '注册中...' : '注册' }}
+                        </button>
+                    </form>
+                    <div v-if="errorMessage" class="error-message">
+                        {{ errorMessage }}
+                    </div>
+                    <div v-if="successMessage" class="success-message">
+                        {{ successMessage }}
+                    </div>
+                    <div class="login-footer">
+                        <p>已有账号？<a href="login.html">立即登录</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>博客社区</h3>
+                    <p>一个基于Spring Cloud微服务的多用户博客社区平台</p>
+                </div>
+                <div class="footer-section">
+                    <h3>快速链接</h3>
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="categories.html">分类</a></li>
+                        <li><a href="about.html">关于</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>联系方式</h3>
+                    <p>邮箱: contact@blog.com</p>
+                    <p>微信: blog-community</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 博客社区 All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript文件 -->
+    <script src="../js/vue.js"></script>
+    <script src="../js/axios-0.18.0.js"></script>
+    <script>
+        axios.defaults.withCredentials = true;
+        new Vue({
+            el: '#registerApp',
+            data: {
+                form: {
+                    username: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    nickname: '',
+                    agree: false
+                },
+                loading: false,
+                errorMessage: '',
+                successMessage: ''
+            },
+            methods: {
+                async handleRegister() {
+                    this.loading = true;
+                    this.errorMessage = '';
+                    this.successMessage = '';
+                    
+                    if (this.form.password !== this.form.confirmPassword) {
+                        this.errorMessage = '两次输入的密码不一致';
+                        this.loading = false;
+                        return;
+                    }
+                    
+                    try {
+                        const response = await axios.post('http://localhost:8070/api/users/register', {
+                            username: this.form.username,
+                            email: this.form.email,
+                            password: this.form.password,
+                            nickname: this.form.nickname
+                        }, {
+                            withCredentials: true
+                        });
+                        
+                        if (response.data) {
+                            this.successMessage = '注册成功，正在跳转到登录页面...';
+                            setTimeout(() => {
+                                window.location.href = 'login.html';
+                            }, 1500);
+                        } else {
+                            this.errorMessage = '注册失败：用户名或邮箱已存在';
+                        }
+                    } catch (error) {
+                        console.error('注册过程中发生错误：', error);
+                        this.errorMessage = '注册失败：网络错误，请稍后重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

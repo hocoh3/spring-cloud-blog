@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关于我们 - 博客社区</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+    <script src="../js/vue.js"></script>
+    <script src="../js/axios-0.18.0.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="container">
+                <div class="logo">
+                    <a href="../../index.html">博客社区</a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../index.html" class="nav-item">首页</a>
+                    <a href="categories.html" class="nav-item">分类</a>
+                    <a href="about.html" class="nav-item active">关于</a>
+                </div>
+                <div class="nav-right">
+                    <div class="search-box">
+                        <input type="text" v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="handleSearch">
+                        <button @click="handleSearch">搜索</button>
+                    </div>
+                    <a v-if="!user" href="login.html" class="nav-item login-btn">登录</a>
+                    <a v-if="!user" href="register.html" class="nav-item register-btn">注册</a>
+                    <div v-if="user" class="user-menu">
+                        <span>{{ user.nickname || user.username }}</span>
+                        <a href="profile.html" class="nav-item">个人中心</a>
+                        <a @click="handleLogout" class="nav-item logout-btn">退出</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <div class="container">
+                <!-- 关于我们 -->
+                <div class="about-container">
+                    <h2 class="page-title">关于博客社区</h2>
+                    
+                    <div class="about-section">
+                        <h3>平台介绍</h3>
+                        <p>博客社区是一个基于Spring Cloud微服务架构的多用户博客平台，致力于为用户提供一个高质量的技术分享和交流社区。</p>
+                        <p>我们的目标是打造一个专业、开放、活跃的技术社区，让每一位开发者都能在这里分享知识、交流经验、共同成长。</p>
+                    </div>
+                    
+                    <div class="about-section">
+                        <h3>功能特点</h3>
+                        <div class="features-list">
+                            <div class="feature-item">
+                                <h4>多用户支持</h4>
+                                <p>支持用户注册、登录、个人主页管理等功能</p>
+                            </div>
+                            <div class="feature-item">
+                                <h4>丰富的文章管理</h4>
+                                <p>支持文章发布、编辑、分类、标签管理等</p>
+                            </div>
+                            <div class="feature-item">
+                                <h4>互动交流</h4>
+                                <p>支持文章评论、点赞、分享等互动功能</p>
+                            </div>
+                            <div class="feature-item">
+                                <h4>实时通知</h4>
+                                <p>基于WebSocket的实时消息通知系统</p>
+                            </div>
+                            <div class="feature-item">
+                                <h4>全文搜索</h4>
+                                <p>强大的文章全文搜索功能</p>
+                            </div>
+                            <div class="feature-item">
+                                <h4>响应式设计</h4>
+                                <p>适配各种设备的响应式界面设计</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="about-section">
+                        <h3>技术栈</h3>
+                        <div class="tech-stack">
+                            <div class="tech-category">
+                                <h4>后端技术</h4>
+                                <ul>
+                                    <li>Spring Cloud微服务架构</li>
+                                    <li>Spring Boot框架</li>
+                                    <li>Spring Security安全框架</li>
+                                    <li>Spring Data JPA/MyBatis-Plus</li>
+                                    <li>MySQL数据库</li>
+                                    <li>Redis缓存</li>
+                                    <li>WebSocket实时通信</li>
+                                </ul>
+                            </div>
+                            <div class="tech-category">
+                                <h4>前端技术</h4>
+                                <ul>
+                                    <li>HTML5/CSS3</li>
+                                    <li>JavaScript (ES6+)</li>
+                                    <li>Vue.js框架</li>
+                                    <li>Axios HTTP客户端</li>
+                                    <li>响应式设计</li>
+                                </ul>
+                            </div>
+                            <div class="tech-category">
+                                <h4>基础设施</h4>
+                                <ul>
+                                    <li>Eureka服务注册发现</li>
+                                    <li>Spring Cloud Gateway</li>
+                                    <li>Feign服务间通信</li>
+                                    <li>JWT身份认证</li>
+                                    <li>Docker容器化</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="about-section">
+                        <h3>联系我们</h3>
+                        <div class="contact-info">
+                            <p><strong>邮箱：</strong>contact@blog.com</p>
+                            <p><strong>微信：</strong>blog-community</p>
+                            <p><strong>GitHub：</strong><a href="#">github.com/blog-community</a></p>
+                            <p><strong>技术支持：</strong>support@blog.com</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 侧边栏 -->
+                <aside class="sidebar">
+                    <!-- 用户信息 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">欢迎访问</h3>
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <img :src="getAvatarUrl(user ? user.avatar : null)" alt="用户头像">
+                            </div>
+                            <p v-if="user" class="user-name">{{ user.nickname || user.username }}</p>
+                            <p v-else class="user-name">未登录</p>
+                            <div v-if="!user" class="user-actions">
+                                <a href="login.html" class="btn btn-primary">登录</a>
+                                <a href="register.html" class="btn btn-secondary">注册</a>
+                            </div>
+                            <div v-else class="user-actions">
+                                <a href="profile.html" class="btn btn-primary">个人中心</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 热门文章 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">热门文章</h3>
+                        <div v-if="hotArticlesLoading" class="loading">加载中...</div>
+                        <ul v-else class="hot-articles">
+                            <li v-for="article in hotArticles" :key="article.id">
+                                <a :href="'article.html?id=' + article.id">{{ article.title }}</a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- 文章分类 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">文章分类</h3>
+                        <div v-if="categoriesLoading" class="loading">加载中...</div>
+                        <ul v-else class="category-list">
+                            <li v-for="category in categories" :key="category.id">
+                                <a :href="'category.html?id=' + category.id">{{ category.name }}</a> <span class="count">{{ category.articleCount || 0 }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </aside>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <h3>博客社区</h3>
+                        <p>一个基于Spring Cloud微服务的多用户博客社区平台</p>
+                    </div>
+                    <div class="footer-section">
+                        <h3>快速链接</h3>
+                        <ul>
+                            <li><a href="../../index.html">首页</a></li>
+                            <li><a href="categories.html">分类</a></li>
+                            <li><a href="tags.html">标签</a></li>
+                            <li><a href="about.html">关于</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-section">
+                        <h3>联系方式</h3>
+                        <p>邮箱: hocoh@qq.com</p>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2026 博客社区 All Rights Reserved.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        axios.defaults.withCredentials = true;
+        new Vue({
+            el: '#app',
+            data: {
+                user: null,
+                searchQuery: '',
+                hotArticles: [],
+                categories: [],
+                tags: [],
+                hotArticlesLoading: false,
+                categoriesLoading: false,
+                tagsLoading: false
+            },
+            created() {
+                this.checkUserLogin();
+                this.loadHotArticles();
+                this.loadCategories();
+                this.loadTags();
+            },
+            methods: {
+                checkUserLogin() {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) {
+                        this.user = JSON.parse(userStr);
+                    }
+                },
+                getAvatarUrl(avatar) {
+                    if (!avatar) {
+                        return 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23e9ecef\'/%3E%3Ctext x=\'50\' y=\'50\' font-family=\'Arial\' font-size=\'40\' fill=\'%236c757d\' text-anchor=\'middle\' dy=\'.3em\'%3E%3F%3C/text%3E%3C/svg%3E';
+                    }
+                    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+                        return avatar;
+                    }
+                    return 'http://localhost:8070' + avatar;
+                },
+                handleSearch() {
+                    if (this.searchQuery.trim()) {
+                        window.location.href = 'search.html?q=' + encodeURIComponent(this.searchQuery);
+                    }
+                },
+                handleLogout() {
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                    this.user = null;
+                    window.location.href = 'login.html';
+                },
+                async loadHotArticles() {
+                    this.hotArticlesLoading = true;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/articles/hot');
+                        if (response.data && response.data.records) {
+                            this.hotArticles = response.data.records;
+                        } else if (response.data) {
+                            this.hotArticles = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载热门文章失败:', error);
+                    } finally {
+                        this.hotArticlesLoading = false;
+                    }
+                },
+                async loadCategories() {
+                    this.categoriesLoading = true;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/categories');
+                        if (response.data && response.data.records) {
+                            this.categories = response.data.records;
+                        } else if (response.data) {
+                            this.categories = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载分类失败:', error);
+                    } finally {
+                        this.categoriesLoading = false;
+                    }
+                },
+                async loadTags() {
+                    this.tagsLoading = true;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/tags');
+                        if (response.data && response.data.records) {
+                            this.tags = response.data.records;
+                        } else if (response.data) {
+                            this.tags = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载标签失败:', error);
+                    } finally {
+                        this.tagsLoading = false;
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

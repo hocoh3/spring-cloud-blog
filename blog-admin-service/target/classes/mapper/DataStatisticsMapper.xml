@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.blog.admin.mapper.DataStatisticsMapper">
+
+    <!-- 获取指定日期范围的数据统计 -->
+    <select id="selectByDateRange" resultType="com.blog.admin.entity.DataStatistics">
+        SELECT * FROM data_statistics
+        WHERE stat_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY stat_date ASC
+    </select>
+
+    <!-- 获取最新的统计数据 -->
+    <select id="selectLatest" resultType="com.blog.admin.entity.DataStatistics">
+        SELECT * FROM data_statistics
+        ORDER BY stat_date DESC
+        LIMIT 1
+    </select>
+
+    <!-- 根据日期获取统计数据 -->
+    <select id="selectByDate" resultType="com.blog.admin.entity.DataStatistics">
+        SELECT * FROM data_statistics
+        WHERE DATE(stat_date) = DATE(#{date})
+        LIMIT 1
+    </select>
+
+    <!-- 获取今天的统计数据 -->
+    <select id="selectToday" resultType="com.blog.admin.entity.DataStatistics">
+        SELECT * FROM data_statistics
+        WHERE stat_date = CURDATE()
+        LIMIT 1
+    </select>
+
+    <!-- 获取今天之前的最新统计数据（不包括今天） -->
+    <select id="selectPreviousDay" resultType="com.blog.admin.entity.DataStatistics">
+        SELECT * FROM data_statistics
+        WHERE stat_date &lt; CURDATE()
+        ORDER BY stat_date DESC
+        LIMIT 1
+    </select>
+
+</mapper>

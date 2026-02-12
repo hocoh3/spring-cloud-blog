@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ profile.nickname || profile.username }} - 用户主页</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+    <style>
+        header a{
+            text-decoration: none;
+            color: #666;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 头部导航 -->
+        <header class="header">
+            <div class="container">
+                <div class="logo">
+                    <a href="../../index.html">博客平台</a>
+                </div>
+                <nav class="nav">
+                    <div style="width: 1200px;margin: 0 auto;">
+                        <a href="../../index.html">首页</a>
+                        <el-divider direction="vertical"></el-divider>
+                        <a href="categories.html">分类</a>
+                        <el-divider direction="vertical"></el-divider>
+                        <a href="about.html">关于</a>
+                        <el-divider direction="vertical"></el-divider>
+                    </div>
+                </nav>
+                <div class="search-box" style="float: right;margin-top: 10px">
+                    <input type="text"  v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="handleSearch">
+                    <button @click="handleSearch">搜索</button>
+                </div>
+                <div class="user-section">
+                    <a v-if="!user" href="login.html" class="login-btn">登录</a>
+                    <a v-if="!user" href="register.html" class="register-btn">注册</a>
+                    <div v-if="user" class="user-info">
+                        <div class="user-name">{{ user.nickname || user.username }}</div>
+                        <div class="user-avatar">
+                            <img :src="getAvatarUrl(user.avatar)" alt="用户头像">
+                        </div>
+                        <div class="user-actions">
+                            <a href="profile.html" class="nav-item">个人中心</a>
+                            <a @click="handleLogout" class="nav-item logout-btn">退出</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容 -->
+        <main class="main">
+            <div class="container">
+                <div class="content">
+                    <div v-if="loading" class="loading">加载中...</div>
+                    <div v-else-if="error" class="error-message">{{ error }}</div>
+                    <div v-else>
+                        <div class="profile-container">
+                            <div class="profile-header">
+                                <div class="profile-avatar">
+                                    <img :src="getAvatarUrl(profile.avatar)" alt="用户头像" width="100">
+                                </div>
+                                <div class="profile-info">
+                                    <h1 class="profile-name">{{ profile.nickname || profile.username }}</h1>
+                                    <p class="profile-email">{{ profile.email }}</p>
+                                    <p class="profile-bio">{{ profile.bio || '这个人很懒，还没有填写个人简介' }}</p>
+                                    <div class="profile-stats">
+                                        <div class="stat-item">
+                                            <span class="stat-value">{{ profile.articleCount || 0 }}</span>
+                                            <span class="stat-label">文章</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-value">{{ profile.viewCount || 0 }}</span>
+                                            <span class="stat-label">浏览</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-value">{{ profile.likeCount || 0 }}</span>
+                                            <span class="stat-label">获赞</span>
+                                        </div>
+                                    </div>
+                                    <div v-if="user && user.id !== parseInt(userId)" class="profile-actions">
+                                        <button @click="showSendMessageModal = true" class="btn btn-primary">发送私信</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="profile-tabs">
+                            <button @click="currentTab = 'articles'" :class="['tab-btn', { active: currentTab === 'articles' }]">TA的文章</button>
+                        </div>
+
+                        <div class="profile-section">
+                            <h2 v-if="currentTab === 'articles'">TA的文章</h2>
+
+                            <div v-if="currentTab === 'articles'">
+                                <div v-if="articlesLoading" class="loading">加载文章中...</div>
+                                <div v-else-if="articles.length === 0" class="no-articles">暂无文章</div>
+                                <div v-else class="profile-articles articles-container">
+                                    <article v-for="(article, index) in articles" :key="article ? article.id : 'article-null-' + index" class="article-item" v-if="article">
+                                        <div class="article-header">
+                                            <h3 class="article-title">
+                                                <a :href="'article.html?id=' + article.id">{{ article.title }}</a>
+                                            </h3>
+                                            <div class="article-meta">
+                                                <span class="status-badge" :class="'status-' + article.status">
+                                                    {{ getStatusText(article.status) }}
+                                                </span>
+                                                <span class="date">{{ formatDate(article.createTime) }}</span>
+                                                <span class="views">浏览量: {{ article.viewCount }}</span>
+                                                <span class="comments">评论: {{ article.commentCount }}</span>
+                                                <span class="likes">点赞: {{ article.likeCount }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="article-content">
+                                            <p>{{ article.summary }}</p>
+                                        </div>
+                                        <div class="article-footer">
+                                            <a :href="'article.html?id=' + article.id" class="read-more">阅读全文</a>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="container">
+                <p>&copy; 2024 博客平台. All rights reserved.</p>
+            </div>
+        </footer>
+
+        <!-- 发送私信模态框 -->
+        <div v-if="showSendMessageModal" class="modal-overlay" @click="cancelSendMessage">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3>发送私信给 {{ profile.nickname || profile.username }}</h3>
+                    <button @click="cancelSendMessage" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="messageContent">私信内容:</label>
+                        <textarea id="messageContent" v-model="sendMessageForm.content" rows="5" placeholder="请输入私信内容..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="cancelSendMessage" class="btn btn-secondary">取消</button>
+                    <button @click="handleSendMessage" class="btn btn-primary" :disabled="sendMessageLoading">
+                        {{ sendMessageLoading ? '发送中...' : '发送' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="../js/vue.js"></script>
+    <script src="../js/axios-0.18.0.js"></script>
+    <script>
+        axios.defaults.withCredentials = true;
+        new Vue({
+            el: '#app',
+            data: {
+                user: null,
+                searchQuery: '',
+                userId: null,
+                profile: {},
+                articles: [],
+                loading: false,
+                error: '',
+                articlesLoading: false,
+                currentTab: 'articles',
+                showSendMessageModal: false,
+                sendMessageForm: {
+                    content: ''
+                },
+                sendMessageLoading: false
+            },
+            created() {
+                this.checkUserLogin();
+                this.getUserIdFromUrl();
+                this.loadProfile();
+                this.loadArticles();
+            },
+            methods: {
+                checkUserLogin() {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) {
+                        this.user = JSON.parse(userStr);
+                    }
+                },
+                getAvatarUrl(avatar) {
+                    if (!avatar) {
+                        return 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'150\' height=\'150\' viewBox=\'0 0 150 150\'%3E%3Crect width=\'150\' height=\'150\' fill=\'%23e9ecef\'/%3E%3Ctext x=\'75\' y=\'75\' font-family=\'Arial\' font-size=\'60\' fill=\'%236c757d\' text-anchor=\'middle\' dy=\'.3em\'%3E%3F%3C/text%3E%3C/svg%3E';
+                    }
+                    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+                        return avatar;
+                    }
+                    return 'http://localhost:8070' + avatar;
+                },
+                getUserIdFromUrl() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.userId = urlParams.get('id');
+                },
+                handleSearch() {
+                    if (this.searchQuery.trim()) {
+                        window.location.href = 'search.html?q=' + encodeURIComponent(this.searchQuery);
+                    }
+                },
+                handleLogout() {
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                    this.user = null;
+                    window.location.href = 'login.html';
+                },
+                async loadProfile() {
+                    if (!this.userId) {
+                        this.error = '用户ID不存在';
+                        return;
+                    }
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/users/' + this.userId, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data) {
+                            this.profile = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载用户信息失败:', error);
+                        this.error = '加载用户信息失败，请稍后重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async loadArticles() {
+                    if (!this.userId) {
+                        return;
+                    }
+                    this.articlesLoading = true;
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/articles/user/' + this.userId, {
+                            withCredentials: true,
+                            params: {
+                                page: 1,
+                                size: 10
+                            },
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        if (response.data && response.data.records) {
+                            this.articles = response.data.records;
+                        }
+                    } catch (error) {
+                        console.error('加载文章失败:', error);
+                    } finally {
+                        this.articlesLoading = false;
+                    }
+                },
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                },
+                getStatusText(status) {
+                    const statusMap = {
+                        0: '已发布',
+                        1: '草稿',
+                        2: '审核中',
+                        3: '已删除'
+                    };
+                    return statusMap[status] || '未知';
+                },
+                async handleSendMessage() {
+                    if (!this.sendMessageForm.content.trim()) {
+                        alert('请输入私信内容');
+                        return;
+                    }
+                    if (!this.user) {
+                        alert('请先登录');
+                        return;
+                    }
+                    this.sendMessageLoading = true;
+                    try {
+                        const messageData = {
+                            senderId: this.user.id,
+                            receiverId: parseInt(this.userId),
+                            content: this.sendMessageForm.content
+                        };
+                        await axios.post('http://localhost:8070/api/message/send', messageData, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        });
+                        alert('私信发送成功');
+                        this.showSendMessageModal = false;
+                        this.sendMessageForm.content = '';
+                    } catch (error) {
+                        console.error('发送私信失败:', error);
+                        alert('发送私信失败，请稍后重试');
+                    } finally {
+                        this.sendMessageLoading = false;
+                    }
+                },
+                cancelSendMessage() {
+                    this.showSendMessageModal = false;
+                    this.sendMessageForm.content = '';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

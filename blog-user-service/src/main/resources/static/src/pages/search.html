@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搜索结果 - 博客社区</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+    <script src="../js/vue.js"></script>
+    <script src="../js/axios-0.18.0.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="container">
+                <div class="logo">
+                    <a href="../../index.html">博客社区</a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../index.html" class="nav-item">首页</a>
+                    <a href="categories.html" class="nav-item">分类</a>
+                    <a href="about.html" class="nav-item">关于</a>
+                </div>
+                <div class="nav-right">
+                    <div class="search-box">
+                        <input type="text" v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="handleSearch">
+                        <button @click="handleSearch">搜索</button>
+                    </div>
+                    <a v-if="!user" href="login.html" class="nav-item login-btn">登录</a>
+                    <a v-if="!user" href="register.html" class="nav-item register-btn">注册</a>
+                    <div v-if="user" class="user-menu">
+                        <span>{{ user.nickname || user.username }}</span>
+                        <a href="profile.html" class="nav-item">个人中心</a>
+                        <a @click="handleLogout" class="nav-item logout-btn">退出</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <div class="container">
+                <div class="search-container">
+                    <h2 class="page-title">搜索结果</h2>
+                    <div v-if="loading" class="loading">搜索中...</div>
+                    <div v-else-if="error" class="error-message">{{ error }}</div>
+                    <div v-else>
+                        <div class="search-info">
+                            <span class="search-keyword">关键词: "{{ searchKeyword }}"</span>
+                            <span class="result-count">共找到 {{ totalResults }} 篇文章</span>
+                        </div>
+                        
+                        <div v-if="articles.length === 0" class="no-results">没有找到相关文章</div>
+                        <div v-else class="articles-container">
+                            <article v-for="article in articles" :key="article.id" class="article-item">
+                                <div class="article-header">
+                                    <h2 class="article-title"><a :href="'article.html?id=' + article.id">{{ article.title }}</a></h2>
+                                    <div class="article-meta">
+                                        <span class="author">作者: <a :href="'user.html?id=' + article.authorId">{{ article.authorName }}</a></span>
+                                        <span class="category">分类: <a :href="'category.html?id=' + article.categoryId">{{ article.categoryName }}</a></span>
+                                        <span class="date">{{ formatDate(article.createTime) }}</span>
+                                        <span class="views">浏览量: {{ article.viewCount }}</span>
+                                    </div>
+                                </div>
+                                <div class="article-content">
+                                    <p>{{ article.summary }}</p>
+                                </div>
+                                <div class="article-footer">
+                                    <a :href="'article.html?id=' + article.id" class="read-more">阅读全文</a>
+                                    <div class="article-stats">
+                                        <span class="comments">评论: {{ article.commentCount }}</span>
+                                        <span class="likes">点赞: {{ article.likeCount }}</span>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        <div v-if="totalPages > 1" class="pagination">
+                            <button v-for="page in totalPages" :key="page" 
+                                    @click="changePage(page)" 
+                                    :class="['page-btn', { active: currentPage === page }]">
+                                {{ page }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 侧边栏 -->
+                <aside class="sidebar">
+                    <!-- 用户信息 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">欢迎访问</h3>
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <img :src="getAvatarUrl(user ? user.avatar : null)" alt="用户头像">
+                            </div>
+                            <p v-if="user" class="user-name">{{ user.nickname || user.username }}</p>
+                            <p v-else class="user-name">未登录</p>
+                            <div v-if="!user" class="user-actions">
+                                <a href="login.html" class="btn btn-primary">登录</a>
+                                <a href="register.html" class="btn btn-secondary">注册</a>
+                            </div>
+                            <div v-else class="user-actions">
+                                <a href="profile.html" class="btn btn-primary">个人中心</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 热门文章 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">热门文章</h3>
+                        <ul class="hot-articles">
+                            <li v-for="article in hotArticles" :key="article.id">
+                                <a :href="'article.html?id=' + article.id">{{ article.title }}</a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- 文章分类 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">文章分类</h3>
+                        <ul class="category-list">
+                            <li v-for="category in categories" :key="category.id">
+                                <a :href="'category.html?id=' + category.id">{{ category.name }}</a> <span class="count">{{ category.articleCount || 0 }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </aside>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <h3>博客社区</h3>
+                        <p>一个基于Spring Cloud微服务的多用户博客社区平台</p>
+                    </div>
+                    <div class="footer-section">
+                        <h3>快速链接</h3>
+                        <ul>
+                            <li><a href="../../index.html">首页</a></li>
+                            <li><a href="categories.html">分类</a></li>
+                            <li><a href="tags.html">标签</a></li>
+                            <li><a href="about.html">关于</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-section">
+                        <h3>联系方式</h3>
+                        <p>邮箱: contact@blog.com</p>
+                        <p>微信: blog-community</p>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2026 博客社区 All Rights Reserved.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        axios.defaults.withCredentials = true;
+        new Vue({
+            el: '#app',
+            data: {
+                user: null,
+                searchQuery: '',
+                searchKeyword: '',
+                articles: [],
+                hotArticles: [],
+                categories: [],
+                tags: [],
+                loading: false,
+                error: '',
+                currentPage: 1,
+                pageSize: 10,
+                totalPages: 0,
+                totalResults: 0
+            },
+            created() {
+                this.checkUserLogin();
+                this.getSearchKeywordFromUrl();
+                this.loadSearchResults();
+                this.loadHotArticles();
+                this.loadCategories();
+                this.loadTags();
+            },
+            methods: {
+                checkUserLogin() {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) {
+                        this.user = JSON.parse(userStr);
+                    }
+                },
+                getAvatarUrl(avatar) {
+                    if (!avatar) {
+                        return 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23e9ecef\'/%3E%3Ctext x=\'50\' y=\'50\' font-family=\'Arial\' font-size=\'40\' fill=\'%236c757d\' text-anchor=\'middle\' dy=\'.3em\'%3E%3F%3C/text%3E%3C/svg%3E';
+                    }
+                    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+                        return avatar;
+                    }
+                    return 'http://localhost:8070' + avatar;
+                },
+                handleSearch() {
+                    if (this.searchQuery.trim()) {
+                        window.location.href = 'search.html?q=' + encodeURIComponent(this.searchQuery);
+                    }
+                },
+                handleLogout() {
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                    this.user = null;
+                    window.location.href = 'login.html';
+                },
+                getSearchKeywordFromUrl() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.searchKeyword = urlParams.get('q') || '';
+                    this.searchQuery = this.searchKeyword;
+                },
+                async loadSearchResults() {
+                    if (!this.searchKeyword) {
+                        this.error = '请输入搜索关键词';
+                        return;
+                    }
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/search/articles', {
+                            params: {
+                                keyword: this.searchKeyword,
+                                page: this.currentPage - 1,
+                                size: this.pageSize
+                            }
+                        });
+                        if (response.data) {
+                            this.articles = response.data.content || [];
+                            this.totalPages = response.data.totalPages || 1;
+                            this.totalResults = response.data.totalElements || 0;
+                            document.title = '搜索: ' + this.searchKeyword + ' - 博客社区';
+                        }
+                    } catch (error) {
+                        console.error('搜索失败:', error);
+                        this.error = '搜索失败，请稍后重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async loadHotArticles() {
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/articles/hot');
+                        if (response.data && response.data.records) {
+                            this.hotArticles = response.data.records;
+                        } else if (response.data) {
+                            this.hotArticles = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载热门文章失败:', error);
+                    }
+                },
+                async loadCategories() {
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/categories');
+                        if (response.data && response.data.records) {
+                            this.categories = response.data.records;
+                        } else if (response.data) {
+                            this.categories = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载分类失败:', error);
+                    }
+                },
+                async loadTags() {
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/tags');
+                        if (response.data && response.data.records) {
+                            this.tags = response.data.records;
+                        } else if (response.data) {
+                            this.tags = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载标签失败:', error);
+                    }
+                },
+                changePage(page) {
+                    this.currentPage = page;
+                    this.loadSearchResults();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

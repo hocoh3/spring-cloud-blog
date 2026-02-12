@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input, textarea {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        .log {
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .log-entry .time {
+            color: #999;
+            margin-right: 10px;
+        }
+        .notification {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Notification Test</h1>
+
+    <div class="container">
+        <h2>Connection</h2>
+        <div id="status" class="status disconnected">Disconnected</div>
+        <input type="number" id="userId" placeholder="User ID" value="1">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <div class="container">
+        <h2>Send Notification</h2>
+        <input type="number" id="targetUserId" placeholder="Target User ID" value="1">
+        <select id="type">
+            <option value="1">Comment</option>
+            <option value="2">Like</option>
+            <option value="3">Article</option>
+            <option value="4">System</option>
+        </select>
+        <input type="text" id="title" placeholder="Title">
+        <textarea id="content" placeholder="Content"></textarea>
+        <button onclick="sendNotification()">Send</button>
+    </div>
+
+    <div class="container">
+        <h2>Notifications</h2>
+        <div id="notifications"></div>
+    </div>
+
+    <div class="container">
+        <h2>Log</h2>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentUserId = null;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="time">[${time}]</span> ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+
+        function updateStatus(status) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${status}`;
+            statusDiv.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        function connect() {
+            const userId = document.getElementById('userId').value;
+            if (!userId) {
+                alert('Please enter user ID');
+                return;
+            }
+
+            currentUserId = userId;
+            updateStatus('connecting');
+            log(`Connecting to WebSocket with user ID: ${userId}`);
+
+            const wsUrl = `ws://localhost:8075/ws/notification?userId=${userId}`;
+            log(`WebSocket URL: ${wsUrl}`);
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function(event) {
+                    log('WebSocket connected successfully');
+                    updateStatus('connected');
+                };
+
+                ws.onmessage = function(event) {
+                    log(`Message received: ${event.data}`);
+                    try {
+                        const notification = JSON.parse(event.data);
+                        displayNotification(notification);
+                    } catch (e) {
+                        log(`Failed to parse message: ${e.message}`);
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    log(`WebSocket error: ${JSON.stringify(error)}`);
+                    updateStatus('disconnected');
+                };
+
+                ws.onclose = function(event) {
+                    log(`WebSocket closed: ${event.code} - ${event.reason}`);
+                    updateStatus('disconnected');
+                };
+            } catch (error) {
+                log(`Connection error: ${error.message}`);
+                updateStatus('disconnected');
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                log('Disconnected from WebSocket');
+                updateStatus('disconnected');
+            }
+        }
+
+        async function sendNotification() {
+            const targetUserId = document.getElementById('targetUserId').value;
+            const type = document.getElementById('type').value;
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+
+            if (!targetUserId || !title || !content) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const notification = {
+                userId: parseInt(targetUserId),
+                type: parseInt(type),
+                title: title,
+                content: content,
+                relatedId: null
+            };
+
+            log(`Sending notification: ${JSON.stringify(notification)}`);
+
+            try {
+                const response = await fetch('http://localhost:8070/api/notification/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(notification)
+                });
+
+                if (response.ok) {
+                    log('Notification sent successfully');
+                    document.getElementById('title').value = '';
+                    document.getElementById('content').value = '';
+                } else {
+                    log(`Failed to send notification: ${response.status}`);
+                }
+            } catch (error) {
+                log(`Error sending notification: ${error.message}`);
+            }
+        }
+
+        function displayNotification(notification) {
+            const notificationsDiv = document.getElementById('notifications');
+            const notificationDiv = document.createElement('div');
+            notificationDiv.className = 'notification';
+            notificationDiv.innerHTML = `
+                <strong>${notification.title}</strong><br>
+                ${notification.content}<br>
+                <small>${new Date(notification.createTime).toLocaleString()}</small>
+            `;
+            notificationsDiv.insertBefore(notificationDiv, notificationsDiv.firstChild);
+            log(`Notification displayed: ${notification.title}`);
+        }
+
+        window.onload = function() {
+            log('Page loaded');
+        };
+    </script>
+</body>
+</html>

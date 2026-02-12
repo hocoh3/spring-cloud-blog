@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>博客社区 - 首页</title>
+    <link rel="stylesheet" href="src/assets/css/main.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="container">
+                <div class="logo">
+                    <a href="index.html">博客社区</a>
+                </div>
+                <div class="nav-menu">
+                    <a href="index.html" class="nav-item active">首页</a>
+                    <a href="src/pages/categories.html" class="nav-item">分类</a>
+                    <a href="src/pages/about.html" class="nav-item">关于</a>
+                </div>
+                <div class="nav-right">
+                    <div class="search-box">
+                        <input type="text" v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="handleSearch">
+                        <button @click="handleSearch">搜索</button>
+                    </div>
+                    <a v-if="!user" href="src/pages/login.html" class="nav-item login-btn">登录</a>
+                    <a v-if="!user" href="src/pages/register.html" class="nav-item register-btn">注册</a>
+                    <div v-if="user" class="notification-menu">
+                        <div class="notification-item" @click="toggleNotifications">
+                            <span class="icon">🔔</span>
+                            <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+                        </div>
+                        <div class="notification-item" @click="toggleMessages">
+                            <span class="icon">✉️</span>
+                            <span v-if="unreadMessageCount > 0" class="badge">{{ unreadMessageCount }}</span>
+                        </div>
+                    </div>
+                    <div v-if="user" class="user-menu">
+                        <span>{{ user.nickname || user.username }}</span>
+                        <a href="src/pages/profile.html" class="nav-item">个人中心</a>
+                        <a @click="handleLogout" class="nav-item logout-btn">退出</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 通知下拉菜单 -->
+            <div v-if="user && showNotifications" class="dropdown-menu notifications-dropdown">
+                <div class="dropdown-header">
+                    <h3>通知</h3>
+                    <button @click="markAllAsRead" class="mark-read-btn">全部已读</button>
+                </div>
+                <div class="dropdown-content">
+                    <div v-if="notifications.length === 0" class="empty-message">暂无通知</div>
+                    <div v-for="notification in notifications" :key="notification.id" 
+                         class="notification-item" 
+                         :class="{ unread: !notification.isRead }"
+                         @click="handleNotificationClick(notification)">
+                        <div class="notification-content">
+                            <div class="notification-title">{{ notification.title }}</div>
+                            <div class="notification-text">{{ notification.content }}</div>
+                            <div class="notification-time">{{ formatNotificationTime(notification.createTime) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 私信下拉菜单 -->
+            <div v-if="user && showMessages" class="dropdown-menu messages-dropdown">
+                <div class="dropdown-header">
+                    <h3>私信</h3>
+                    <button @click="markAllMessagesAsRead" class="mark-read-btn">全部已读</button>
+                </div>
+                <div class="dropdown-content">
+                    <div v-if="messages.length === 0" class="empty-message">暂无私信</div>
+                    <div v-for="message in messages" :key="message.id" 
+                         class="message-item" 
+                         :class="{ unread: !message.isRead }">
+                        <div class="message-avatar">
+                            <img :src="getAvatarUrl(message.senderAvatar)" alt="头像">
+                        </div>
+                        <div class="message-content">
+                            <div class="message-sender">{{ message.senderName }}</div>
+                            <div class="message-text">{{ message.content }}</div>
+                            <div class="message-time">{{ formatNotificationTime(message.createTime) }}</div>
+                            <div class="message-actions">
+                                <button @click="openReplyModal(message)" class="reply-btn">回复</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <div class="container">
+                <!-- 文章列表 -->
+                <div class="articles-container">
+                    <div v-if="loading" class="loading">加载中...</div>
+                    <div v-else-if="error" class="error-message">{{ error }}</div>
+                    <article v-else v-for="article in articles" :key="article.id" class="article-item">
+                        <div class="article-header">
+                            <h2 class="article-title">
+                                <a :href="'src/pages/article.html?id=' + article.id">{{ article.title }}</a>
+                            </h2>
+                            <div class="article-meta">
+                                <span class="author">作者: <a :href="'src/pages/user.html?id=' + article.authorId">{{ article.authorName }}</a></span>
+                                <span class="category">分类: <a :href="'src/pages/category.html?id=' + article.categoryId">{{ article.categoryName }}</a></span>
+                                <span class="date">{{ formatDate(article.createTime) }}</span>
+                                <span class="views">浏览量: {{ article.viewCount }}</span>
+                            </div>
+                        </div>
+                        <div class="article-content">
+                            <p>{{ article.summary }}</p>
+                        </div>
+                        <div class="article-footer">
+                            <a :href="'src/pages/article.html?id=' + article.id" class="read-more">阅读全文</a>
+                            <div class="article-stats">
+                                <span class="comments">评论: {{ article.commentCount }}</span>
+                                <span class="likes">点赞: {{ article.likeCount }}</span>
+                            </div>
+                        </div>
+                    </article>
+                    
+                    <!-- 分页 -->
+                    <div v-if="totalPages > 1" class="pagination">
+                        <button v-for="page in totalPages" :key="page" 
+                                @click="changePage(page)" 
+                                :class="['page-btn', { active: currentPage === page }]">
+                            {{ page }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 侧边栏 -->
+                <aside class="sidebar">
+                    <!-- 用户信息 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">欢迎访问</h3>
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <img :src="getAvatarUrl(user ? user.avatar : null)" alt="用户头像">
+                            </div>
+                            <p class="user-name">{{ user ? (user.nickname || user.username) : '未登录' }}</p>
+                            <div class="user-actions" v-if="!user">
+                                <a href="src/pages/login.html" class="btn btn-primary">登录</a>
+                                <a href="src/pages/register.html" class="btn btn-secondary">注册</a>
+                            </div>
+                            <div class="user-actions" v-else>
+                                <a href="src/pages/profile.html" class="btn btn-primary">个人中心</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 热门文章 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">热门文章</h3>
+                        <ul class="hot-articles" v-if="hotArticles.length > 0">
+                            <li v-for="article in hotArticles" :key="article.id">
+                                <a :href="'src/pages/article.html?id=' + article.id">{{ article.title }}</a>
+                            </li>
+                        </ul>
+                        <div v-else class="loading">加载中...</div>
+                    </div>
+
+                    <!-- 分类列表 -->
+                    <div class="sidebar-card">
+                        <h3 class="card-title">文章分类</h3>
+                        <ul class="category-list" v-if="categories.length > 0">
+                            <li v-for="category in categories" :key="category.id">
+                                <a :href="'src/pages/category.html?id=' + category.id">{{ category.name }}</a> 
+                                <span class="count">{{ category.articleCount }}</span>
+                            </li>
+                        </ul>
+                        <div v-else class="loading">加载中...</div>
+                    </div>
+                </aside>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <h3>博客社区</h3>
+                        <p>一个基于Spring Cloud微服务的多用户博客社区平台</p>
+                    </div>
+                    <div class="footer-section">
+                        <h3>快速链接</h3>
+                        <ul>
+                            <li><a href="index.html">首页</a></li>
+                            <li><a href="src/pages/categories.html">分类</a></li>
+                            <li><a href="src/pages/tags.html">标签</a></li>
+                            <li><a href="src/pages/about.html">关于</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-section">
+                        <h3>联系方式</h3>
+                        <p>邮箱: contact@blog.com</p>
+                        <p>微信: blog-community</p>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2026 博客社区 All Rights Reserved.</p>
+                </div>
+            </div>
+        </footer>
+
+        <!-- 回复私信模态框 -->
+        <div v-if="showReplyModal" class="modal-overlay" @click="closeReplyModal">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3>回复私信给 {{ replyMessage.senderName }}</h3>
+                    <button @click="closeReplyModal" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="original-message">
+                        <div class="original-message-label">原消息:</div>
+                        <div class="original-message-content">{{ replyMessage.content }}</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="replyContent">回复内容:</label>
+                        <textarea id="replyContent" v-model="replyForm.content" rows="5" placeholder="请输入回复内容..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="closeReplyModal" class="btn btn-secondary">取消</button>
+                    <button @click="sendReply" class="btn btn-primary" :disabled="replyLoading">
+                        {{ replyLoading ? '发送中...' : '发送' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vue.js和axios -->
+    <script src="src/js/vue.js"></script>
+    <script src="src/js/axios-0.18.0.js"></script>
+    <script src="src/js/websocket.js"></script>
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                user: null,
+                searchQuery: '',
+                articles: [],
+                hotArticles: [],
+                categories: [],
+                tags: [],
+                loading: false,
+                error: '',
+                currentPage: 1,
+                pageSize: 10,
+                totalPages: 0,
+                showNotifications: false,
+                showMessages: false,
+                notifications: [],
+                messages: [],
+                unreadCount: 0,
+                unreadMessageCount: 0,
+                ws: null,
+                showReplyModal: false,
+                replyMessage: {},
+                replyForm: {
+                    content: ''
+                },
+                replyLoading: false
+            },
+            created() {
+                this.checkUserLogin();
+                this.loadArticles();
+                this.loadHotArticles();
+                this.loadCategories();
+                this.loadTags();
+                if (this.user) {
+                    this.initWebSocket();
+                    this.loadNotifications();
+                    this.loadMessages();
+                }
+            },
+            methods: {
+                checkUserLogin() {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) {
+                        this.user = JSON.parse(userStr);
+                    }
+                },
+                initWebSocket() {
+                    if (!this.user) return;
+                    
+                    const wsUrl = `ws://localhost:8073/ws/notification?userId=${this.user.id}`;
+                    this.ws = new WebSocket(wsUrl);
+                    
+                    this.ws.onopen = () => {
+                        console.log('WebSocket连接成功');
+                    };
+                    
+                    this.ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'notification') {
+                                this.handleNewNotification(data.data);
+                            } else if (data.type === 'message') {
+                                this.handleNewMessage(data.data);
+                            }
+                        } catch (error) {
+                            console.error('解析WebSocket消息失败:', error);
+                        }
+                    };
+                    
+                    this.ws.onerror = (error) => {
+                        console.error('WebSocket错误:', error);
+                    };
+                    
+                    this.ws.onclose = () => {
+                        console.log('WebSocket连接关闭');
+                        setTimeout(() => {
+                            if (this.user) {
+                                this.initWebSocket();
+                            }
+                        }, 5000);
+                    };
+                },
+                handleNewNotification(notification) {
+                    this.notifications.unshift(notification);
+                    if (!notification.isRead) {
+                        this.unreadCount++;
+                    }
+                },
+                handleNewMessage(message) {
+                    this.messages.unshift(message);
+                    if (!message.isRead) {
+                        this.unreadMessageCount++;
+                    }
+                },
+                async loadNotifications() {
+                    if (!this.user) return;
+                    try {
+                        const response = await axios.get(`http://localhost:8070/api/notification/user/${this.user.id}`, {
+                            params: { page: 0, size: 10 }
+                        });
+                        if (response.data) {
+                            this.notifications = response.data;
+                            this.unreadCount = this.notifications.filter(n => !n.isRead).length;
+                        }
+                    } catch (error) {
+                        console.error('加载通知失败:', error);
+                    }
+                },
+                async loadMessages() {
+                    if (!this.user) return;
+                    try {
+                        const response = await axios.get(`http://localhost:8070/api/message/user/${this.user.id}`, {
+                            params: { page: 0, size: 10 }
+                        });
+                        if (response.data) {
+                            this.messages = response.data;
+                            this.unreadMessageCount = this.messages.filter(m => !m.isRead).length;
+                        }
+                    } catch (error) {
+                        console.error('加载私信失败:', error);
+                    }
+                },
+                toggleNotifications() {
+                    this.showNotifications = !this.showNotifications;
+                    this.showMessages = false;
+                },
+                toggleMessages() {
+                    this.showMessages = !this.showMessages;
+                    this.showNotifications = false;
+                },
+                async handleNotificationClick(notification) {
+                    if (!notification.isRead) {
+                        try {
+                            await axios.put(`http://localhost:8070/api/notification/read/${notification.id}`);
+                            notification.isRead = true;
+                            this.unreadCount--;
+                        } catch (error) {
+                            console.error('标记通知已读失败:', error);
+                        }
+                    }
+                    if (notification.relatedId) {
+                        window.location.href = `src/pages/article.html?id=${notification.relatedId}`;
+                    }
+                },
+                async handleMessageClick(message) {
+                    if (!message.isRead) {
+                        try {
+                            await axios.put(`http://localhost:8070/api/message/read/${message.id}`);
+                            message.isRead = true;
+                            this.unreadMessageCount--;
+                        } catch (error) {
+                            console.error('标记私信已读失败:', error);
+                        }
+                    }
+                },
+                openReplyModal(message) {
+                    this.replyMessage = message;
+                    this.replyForm.content = '';
+                    this.showReplyModal = true;
+                },
+                closeReplyModal() {
+                    this.showReplyModal = false;
+                    this.replyMessage = {};
+                    this.replyForm.content = '';
+                },
+                async sendReply() {
+                    if (!this.replyForm.content.trim()) {
+                        alert('请输入回复内容');
+                        return;
+                    }
+                    if (!this.user) {
+                        alert('请先登录');
+                        return;
+                    }
+                    this.replyLoading = true;
+                    try {
+                        const messageData = {
+                            senderId: this.user.id,
+                            receiverId: this.replyMessage.senderId,
+                            content: this.replyForm.content
+                        };
+                        await axios.post('http://localhost:8070/api/message/send', messageData);
+                        alert('回复发送成功');
+                        this.closeReplyModal();
+                        this.loadMessages();
+                    } catch (error) {
+                        console.error('发送回复失败:', error);
+                        alert('发送回复失败，请稍后重试');
+                    } finally {
+                        this.replyLoading = false;
+                    }
+                },
+                async markAllAsRead() {
+                    if (!this.user) return;
+                    try {
+                        await axios.put(`http://localhost:8070/api/notification/read/all/${this.user.id}`);
+                        this.notifications.forEach(n => n.isRead = true);
+                        this.unreadCount = 0;
+                    } catch (error) {
+                        console.error('标记所有通知已读失败:', error);
+                    }
+                },
+                async markAllMessagesAsRead() {
+                    if (!this.user) return;
+                    try {
+                        await axios.put(`http://localhost:8070/api/message/read/all/${this.user.id}`);
+                        this.messages.forEach(m => m.isRead = true);
+                        this.unreadMessageCount = 0;
+                    } catch (error) {
+                        console.error('标记所有私信已读失败:', error);
+                    }
+                },
+                getAvatarUrl(avatar) {
+                    if (!avatar) {
+                        return 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23e9ecef\'/%3E%3Ctext x=\'50\' y=\'50\' font-family=\'Arial\' font-size=\'40\' fill=\'%236c757d\' text-anchor=\'middle\' dy=\'.3em\'%3E%3F%3C/text%3E%3C/svg%3E';
+                    }
+                    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+                        return avatar;
+                    }
+                    return 'http://localhost:8070' + avatar;
+                },
+                handleSearch() {
+                    if (this.searchQuery.trim()) {
+                        window.location.href = 'src/pages/search.html?q=' + encodeURIComponent(this.searchQuery);
+                    }
+                },
+                async loadArticles() {
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/articles', {
+                            params: {
+                                page: this.currentPage,
+                                size: this.pageSize,
+                                status: 2
+                            }
+                        });
+                        if (response.data && response.data.records) {
+                            this.articles = response.data.records;
+                            this.totalPages = Math.ceil(response.data.total / this.pageSize) || 1;
+                        }
+                    } catch (error) {
+                        console.error('加载文章失败:', error);
+                        this.error = '加载文章失败，请稍后重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async loadHotArticles() {
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/articles/hot', {
+                            params: { limit: 5 }
+                        });
+                        if (response.data && response.data.records) {
+                            this.hotArticles = response.data.records;
+                        } else if (response.data) {
+                            this.hotArticles = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载热门文章失败:', error);
+                    }
+                },
+                async loadCategories() {
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/categories');
+                        if (response.data && response.data.records) {
+                            this.categories = response.data.records;
+                        } else if (response.data) {
+                            this.categories = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载分类失败:', error);
+                    }
+                },
+                async loadTags() {
+                    try {
+                        const response = await axios.get('http://localhost:8070/api/content/tags');
+                        if (response.data && response.data.records) {
+                            this.tags = response.data.records;
+                        } else if (response.data) {
+                            this.tags = response.data;
+                        }
+                    } catch (error) {
+                        console.error('加载标签失败:', error);
+                    }
+                },
+                changePage(page) {
+                    this.currentPage = page;
+                    this.loadArticles();
+                    window.scrollTo(0, 0);
+                },
+                handleLogout() {
+                    if (this.ws) {
+                        this.ws.close();
+                    }
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    this.user = null;
+                    window.location.reload();
+                },
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN');
+                },
+                formatNotificationTime(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diff = now - date;
+                    const minutes = Math.floor(diff / 60000);
+                    const hours = Math.floor(diff / 3600000);
+                    const days = Math.floor(diff / 86400000);
+                    
+                    if (minutes < 1) return '刚刚';
+                    if (minutes < 60) return `${minutes}分钟前`;
+                    if (hours < 24) return `${hours}小时前`;
+                    if (days < 7) return `${days}天前`;
+                    return date.toLocaleDateString('zh-CN');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
