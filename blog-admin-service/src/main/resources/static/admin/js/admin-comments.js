@@ -3,27 +3,12 @@ const CommentsComponent = {
         <div class="comments-management">
             <div class="page-header">
                 <h2>评论管理</h2>
-                <div class="page-actions">
-                    <button @click="loadComments" class="btn btn-primary">刷新</button>
-                </div>
             </div>
 
             <div class="comments-stats">
                 <div class="stat-card">
                     <div class="stat-value">{{ commentStats.total || 0 }}</div>
                     <div class="stat-label">评论总数</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ commentStats.normal || 0 }}</div>
-                    <div class="stat-label">正常评论</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ commentStats.pending || 0 }}</div>
-                    <div class="stat-label">待审核</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ commentStats.deleted || 0 }}</div>
-                    <div class="stat-label">已删除</div>
                 </div>
             </div>
 

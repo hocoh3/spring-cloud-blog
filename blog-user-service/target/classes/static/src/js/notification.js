@@ -1,3 +1,10 @@
+// 动态设置 API 基础 URL：如果当前端口是 8000（用户服务），则使用 8070（网关）
+const currentPort = window.location.port;
+const API_BASE_URL = currentPort === '8000' 
+    ? `${window.location.protocol}//${window.location.hostname}:8070/api`
+    : '/api';
+axios.defaults.baseURL = API_BASE_URL;
+
 const NotificationComponent = {
     template: `
         <div class="notification-container">
@@ -135,7 +142,7 @@ const NotificationComponent = {
             if (!user) return;
             
             try {
-                const response = await axios.get(`http://localhost:8070/api/notification/unread/count/${user.id}`);
+                const response = await axios.get(`/notification/unread/count/${user.id}`);
                 this.unreadCount = response.data || 0;
             } catch (error) {
                 console.error('加载未读通知数量失败:', error);
@@ -148,7 +155,7 @@ const NotificationComponent = {
             
             this.loading = true;
             try {
-                const response = await axios.get(`http://localhost:8070/api/notification/user/${user.id}`, {
+                const response = await axios.get(`/notification/user/${user.id}`, {
                     params: {
                         page: this.currentPage,
                         size: this.pageSize
@@ -171,7 +178,7 @@ const NotificationComponent = {
             if (!user) return;
             
             try {
-                await axios.put(`http://localhost:8070/api/notification/read/all/${user.id}`);
+                await axios.put(`/notification/read/all/${user.id}`);
                 this.notifications.forEach(n => n.isRead = 1);
                 this.unreadCount = 0;
             } catch (error) {
@@ -182,7 +189,7 @@ const NotificationComponent = {
         async handleNotificationClick(notification) {
             if (!notification.isRead) {
                 try {
-                    await axios.put(`http://localhost:8070/api/notification/read/${notification.id}`);
+                    await axios.put(`/notification/read/${notification.id}`);
                     notification.isRead = 1;
                     this.unreadCount--;
                 } catch (error) {

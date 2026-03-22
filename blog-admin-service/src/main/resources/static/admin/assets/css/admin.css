@@ -589,6 +589,38 @@ body {
     font-size: 16px;
 }
 
+.top-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.top-status {
+    font-weight: 600;
+    color: #ee5a24;
+}
+
+.status-badge.approved {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-badge.pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.rejected{
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
 @media (max-width: 768px) {
     .sidebar {
         position: fixed;

@@ -6,7 +6,9 @@ import com.blog.interaction.entity.Notification;
 import com.blog.interaction.feign.UserClient;
 import com.blog.interaction.mapper.NotificationMapper;
 import com.blog.interaction.service.NotificationService;
+import com.blog.interaction.service.RabbitMQService;
 import com.blog.interaction.websocket.WebSocketServer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +24,8 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     private final WebSocketServer webSocketServer;
     private final UserClient userClient;
+    private final RabbitMQService rabbitMQService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public long getUnreadCount(Long userId) {
@@ -73,6 +77,14 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
         boolean saved = save(notification);
         if (saved) {
             sendWebSocketNotification(notification.getUserId(), notification);
+            // 通过RabbitMQ发送通知消息
+            try {
+                String message = objectMapper.writeValueAsString(notification);
+                rabbitMQService.sendNotification(message);
+                log.info("通知消息已发送到RabbitMQ: {}", notification.getTitle());
+            } catch (Exception e) {
+                log.error("发送RabbitMQ通知消息失败: {}", e.getMessage(), e);
+            }
         }
         return saved;
     }

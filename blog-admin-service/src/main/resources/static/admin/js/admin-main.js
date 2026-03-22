@@ -3,6 +3,7 @@ new Vue({
     components: {
         'dashboard': DashboardComponent,
         'users': UsersComponent,
+        'categories': CategoriesComponent,
         'review': ReviewComponent,
         'comments': CommentsComponent,
         'statistics': StatisticsComponent,
@@ -22,6 +23,7 @@ new Vue({
             const titles = {
                 dashboard: '数据概览',
                 users: '用户管理',
+                categories: '分类管理',
                 review: '内容审核',
                 comments: '评论管理',
                 statistics: '数据统计',

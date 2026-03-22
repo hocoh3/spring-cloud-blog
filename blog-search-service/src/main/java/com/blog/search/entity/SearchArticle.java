@@ -21,6 +21,12 @@ public class SearchArticle {
     @Field(type = FieldType.Keyword, index = false)
     private Long userId;
 
+    @Field(type = FieldType.Keyword, index = false)
+    private Long authorId;
+
+    @Field(type = FieldType.Keyword, index = false)
+    private String authorName;
+
     @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_smart")
     private String title;
 
@@ -32,6 +38,9 @@ public class SearchArticle {
 
     @Field(type = FieldType.Keyword)
     private Long categoryId;
+
+    @Field(type = FieldType.Keyword, index = false)
+    private String categoryName;
 
     @Field(type = FieldType.Keyword, index = false)
     private String coverImage;

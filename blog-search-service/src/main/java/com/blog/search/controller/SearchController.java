@@ -28,7 +28,7 @@ public class SearchController {
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
+        Pageable pageable = PageRequest.of(page, size);
         return searchService.searchArticles(keyword, pageable);
     }
 
@@ -46,7 +46,7 @@ public class SearchController {
             @RequestParam Long categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
+        Pageable pageable = PageRequest.of(page, size);
         return searchService.searchArticlesByCategory(keyword, categoryId, pageable);
     }
 

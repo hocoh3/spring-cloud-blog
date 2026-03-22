@@ -28,13 +28,11 @@ public class CategoryController {
     public ResponseEntity<List<Category>> getCategoryList() {
         List<Category> categories = categoryService.list();
         for (Category category : categories) {
-            if (category.getStatus() == 0) {
-                LambdaQueryWrapper<Article> queryWrapper = new LambdaQueryWrapper<>();
-                queryWrapper.eq(Article::getCategoryId, category.getId())
-                        .eq(Article::getStatus, 2);
-                long count = articleService.count(queryWrapper);
-                category.setArticleCount((int) count);
-            }
+            LambdaQueryWrapper<Article> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(Article::getCategoryId, category.getId())
+                    .eq(Article::getStatus, 2);
+            long count = articleService.count(queryWrapper);
+            category.setArticleCount((int) count);
         }
         return ResponseEntity.ok(categories);
     }
@@ -43,8 +41,23 @@ public class CategoryController {
     @GetMapping("/page")
     public ResponseEntity<Page<Category>> getCategoryPage(
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size) {
-        Page<Category> categoryPage = categoryService.page(new Page<>(page, size));
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String keyword) {
+        Page<Category> categoryPage;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            LambdaQueryWrapper<Category> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.like(Category::getName, keyword);
+            categoryPage = categoryService.page(new Page<>(page, size), queryWrapper);
+        } else {
+            categoryPage = categoryService.page(new Page<>(page, size));
+        }
+        for (Category category : categoryPage.getRecords()) {
+            LambdaQueryWrapper<Article> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(Article::getCategoryId, category.getId())
+                    .eq(Article::getStatus, 2);
+            long count = articleService.count(queryWrapper);
+            category.setArticleCount((int) count);
+        }
         return ResponseEntity.ok(categoryPage);
     }
 
@@ -60,11 +73,11 @@ public class CategoryController {
 
     // 创建分类
     @PostMapping
-    public ResponseEntity<Category> createCategory(@RequestBody Category category) {
+    public ResponseEntity<Boolean> createCategory(@RequestBody Category category) {
         category.setCreateTime(LocalDateTime.now());
         category.setUpdateTime(LocalDateTime.now());
-        categoryService.save(category);
-        return ResponseEntity.ok(category);
+        boolean result = categoryService.save(category);
+        return ResponseEntity.ok(result);
     }
 
     // 更新分类

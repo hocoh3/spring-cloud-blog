@@ -235,6 +235,13 @@
     <script src="src/js/axios-0.18.0.js"></script>
     <script src="src/js/websocket.js"></script>
     <script>
+        // 动态设置 API 基础 URL：如果当前端口是 8000（用户服务），则使用 8070（网关）
+        const currentPort = window.location.port;
+        const API_BASE_URL = currentPort === '8000' 
+            ? `${window.location.protocol}//${window.location.hostname}:8070/api`
+            : '/api';
+        axios.defaults.baseURL = API_BASE_URL;
+        
         let currentUserId = null;
         let notifications = [];
 
@@ -304,7 +311,7 @@
 
             addLog('info', `发送通知: ${JSON.stringify(notification)}`);
 
-            axios.post('http://localhost:8070/api/notification/send', notification)
+            axios.post('/notification/send', notification)
                 .then(response => {
                     addLog('success', '通知发送成功');
                     document.getElementById('notificationTitle').value = '';

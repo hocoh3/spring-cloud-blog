@@ -33,7 +33,7 @@ public class SecurityConfig {
             .csrf().disable()
             .cors().and()
             .authorizeRequests()
-            .antMatchers("/", "/index.html", "/src/**", "/assets/**", "/js/**", "/pages/**", "/ws-test.html", "/users/register", "/users/login", "/users/username/**", "/users/{id}", "/users", "/users/{id}/status", "/uploads/**").permitAll()
+            .antMatchers("/", "/index.html", "/src/**", "/assets/**", "/js/**", "/pages/**", "/ws-test.html", "/users/register", "/users/login", "/users/username/**", "/users/{id}", "/users", "/users/{id}/status", "/uploads/**", "/api/**").permitAll()
             .anyRequest().authenticated()
             .and()
             .formLogin().disable()

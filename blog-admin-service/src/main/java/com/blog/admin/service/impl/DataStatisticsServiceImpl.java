@@ -121,7 +121,7 @@ public class DataStatisticsServiceImpl extends ServiceImpl<DataStatisticsMapper,
 
     private int getUserCount() {
         try {
-            String response = userClient.getUserList(1, 1);
+            String response = userClient.getUserList(1, 1, null);
             if (response != null) {
                 Map<String, Object> body = objectMapper.readValue(response, Map.class);
                 if (body.containsKey("total")) {

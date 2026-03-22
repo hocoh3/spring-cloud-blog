@@ -63,20 +63,6 @@
                                     <h1 class="profile-name">{{ profile.nickname || profile.username }}</h1>
                                     <p class="profile-email">{{ profile.email }}</p>
                                     <p class="profile-bio">{{ profile.bio || '这个人很懒，还没有填写个人简介' }}</p>
-                                    <div class="profile-stats">
-                                        <div class="stat-item">
-                                            <span class="stat-value">{{ profile.articleCount || 0 }}</span>
-                                            <span class="stat-label">文章</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <span class="stat-value">{{ profile.viewCount || 0 }}</span>
-                                            <span class="stat-label">浏览</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <span class="stat-value">{{ profile.likeCount || 0 }}</span>
-                                            <span class="stat-label">获赞</span>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -85,9 +71,36 @@
                             <button @click="showEditForm = !showEditForm" class="btn btn-primary">
                                 {{ showEditForm ? '取消编辑' : '编辑个人信息' }}
                             </button>
+                            <button @click="showChangePasswordForm = !showChangePasswordForm" class="btn btn-warning">
+                                {{ showChangePasswordForm ? '取消修改密码' : '修改密码' }}
+                            </button>
                             <button @click="showCreateForm = !showCreateForm" class="btn btn-success">
                                 {{ showCreateForm ? '取消创建' : '创建文章' }}
                             </button>
+                        </div>
+
+                        <!-- 修改密码表单 -->
+                        <div v-if="showChangePasswordForm" class="edit-form">
+                            <h2>修改密码</h2>
+                            <form @submit.prevent="handleChangePassword">
+                                <div class="form-group">
+                                    <label for="currentPassword">当前密码:</label>
+                                    <input type="password" id="currentPassword" v-model="passwordForm.currentPassword" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="newPassword">新密码:</label>
+                                    <input type="password" id="newPassword" v-model="passwordForm.newPassword" required minlength="6">
+                                </div>
+                                <div class="form-group">
+                                    <label for="confirmPassword">确认新密码:</label>
+                                    <input type="password" id="confirmPassword" v-model="passwordForm.confirmPassword" required minlength="6">
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary" :disabled="passwordLoading">
+                                        {{ passwordLoading ? '修改中...' : '修改密码' }}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
 
                         <!-- 个人信息编辑表单 -->
@@ -273,7 +286,14 @@
     <script src="../js/vue.js"></script>
     <script src="../js/axios-0.18.0.js"></script>
     <script>
+        // 动态设置 API 基础 URL：如果当前端口是 8000（用户服务），则使用 8070（网关）
+        const currentPort = window.location.port;
+        const API_BASE_URL = currentPort === '8000' 
+            ? `${window.location.protocol}//${window.location.hostname}:8070/api`
+            : '/api';
+        axios.defaults.baseURL = API_BASE_URL;
         axios.defaults.withCredentials = true;
+        
         new Vue({
             el: '#app',
             data: {
@@ -290,11 +310,13 @@
                 favoritesLoading: false,
                 showEditForm: false,
                 showCreateForm: false,
+                showChangePasswordForm: false,
                 updateLoading: false,
                 deleteLoading: false,
                 publishLoading: false,
                 unpublishLoading: false,
                 createLoading: false,
+                passwordLoading: false,
                 removeFavoriteLoading: false,
                 avatarUploading: false,
                 currentTab: 'articles',
@@ -309,6 +331,11 @@
                     summary: '',
                     content: '',
                     categoryId: null
+                },
+                passwordForm: {
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: ''
                 }
             },
             created() {
@@ -354,7 +381,7 @@
                     this.loading = true;
                     this.error = '';
                     try {
-                        const response = await axios.get('http://localhost:8070/api/users/' + this.user.id, {
+                        const response = await axios.get('/users/' + this.user.id, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -377,7 +404,7 @@
                 },
                 async loadCategories() {
                     try {
-                        const response = await axios.get('http://localhost:8070/api/content/categories', {
+                        const response = await axios.get('/content/categories', {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -401,7 +428,7 @@
                 async loadArticles() {
                     this.articlesLoading = true;
                     try {
-                        const response = await axios.get('http://localhost:8070/api/content/articles/user/' + this.user.id, {
+                        const response = await axios.get('/content/articles/user/' + this.user.id, {
                             withCredentials: true,
                             params: {
                                 page: 1,
@@ -425,7 +452,7 @@
                 async loadLikedArticles() {
                     this.likesLoading = true;
                     try {
-                        const response = await axios.get('http://localhost:8070/api/content/article-likes/user/' + this.user.id, {
+                        const response = await axios.get('/content/article-likes/user/' + this.user.id, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -443,7 +470,7 @@
                 async loadFavoriteArticles() {
                     this.favoritesLoading = true;
                     try {
-                        const response = await axios.get('http://localhost:8070/api/content/article-favorites/user/' + this.user.id, {
+                        const response = await axios.get('/content/article-favorites/user/' + this.user.id, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -464,7 +491,7 @@
                     }
                     this.removeFavoriteLoading = true;
                     try {
-                        await axios.delete('http://localhost:8070/api/content/article-favorites', {
+                        await axios.delete('/content/article-favorites', {
                             withCredentials: true,
                             data: {
                                 articleId: articleId,
@@ -486,7 +513,7 @@
                 async handleUpdateProfile() {
                     this.updateLoading = true;
                     try {
-                        const response = await axios.put('http://localhost:8070/api/users/' + this.user.id, this.editForm, {
+                        const response = await axios.put('/users/' + this.user.id, this.editForm, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -505,13 +532,54 @@
                         this.updateLoading = false;
                     }
                 },
+                async handleChangePassword() {
+                    if (!this.passwordForm.currentPassword || !this.passwordForm.newPassword || !this.passwordForm.confirmPassword) {
+                        alert('请填写完整的密码信息');
+                        return;
+                    }
+                    if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
+                        alert('两次输入的新密码不一致');
+                        return;
+                    }
+                    if (this.passwordForm.newPassword.length < 6) {
+                        alert('新密码长度至少为6位');
+                        return;
+                    }
+                    this.passwordLoading = true;
+                    try {
+                        const response = await axios.put('/users/' + this.user.id + '/password', {
+                            currentPassword: this.passwordForm.currentPassword,
+                            newPassword: this.passwordForm.newPassword
+                        }, {
+                            withCredentials: true,
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        if (response.data) {
+                            this.showChangePasswordForm = false;
+                            this.passwordForm = {
+                                currentPassword: '',
+                                newPassword: '',
+                                confirmPassword: ''
+                            };
+                            alert('密码修改成功');
+                        }
+                    } catch (error) {
+                        console.error('修改密码失败:', error);
+                        alert('修改密码失败，请检查当前密码是否正确');
+                    } finally {
+                        this.passwordLoading = false;
+                    }
+                },
                 async handleDeleteArticle(articleId) {
                     if (!confirm('确定要删除这篇文章吗？')) {
                         return;
                     }
                     this.deleteLoading = true;
                     try {
-                        await axios.delete('http://localhost:8070/api/content/articles/' + articleId, {
+                        await axios.delete('/content/articles/' + articleId, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -533,7 +601,7 @@
                     }
                     this.publishLoading = true;
                     try {
-                        const response = await axios.post('http://localhost:8070/api/content/articles/' + articleId + '/submit-review', {}, {
+                        const response = await axios.post('/content/articles/' + articleId + '/submit-review', {}, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -559,7 +627,7 @@
                     }
                     this.unpublishLoading = true;
                     try {
-                        const response = await axios.post('http://localhost:8070/api/content/articles/' + articleId + '/unpublish', {}, {
+                        const response = await axios.post('/content/articles/' + articleId + '/unpublish', {}, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -587,7 +655,7 @@
                             userId: this.user.id,
                             status: 0
                         };
-                        const response = await axios.post('http://localhost:8070/api/content/articles', articleData, {
+                        const response = await axios.post('/content/articles', articleData, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -655,7 +723,7 @@
                         const formData = new FormData();
                         formData.append('file', file);
 
-                        const response = await axios.post('http://localhost:8070/api/users/' + this.user.id + '/avatar', formData, {
+                        const response = await axios.post('/users/' + this.user.id + '/avatar', formData, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token'),

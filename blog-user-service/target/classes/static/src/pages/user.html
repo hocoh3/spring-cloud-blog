@@ -164,7 +164,14 @@
     <script src="../js/vue.js"></script>
     <script src="../js/axios-0.18.0.js"></script>
     <script>
+        // 动态设置 API 基础 URL：如果当前端口是 8000（用户服务），则使用 8070（网关）
+        const currentPort = window.location.port;
+        const API_BASE_URL = currentPort === '8000' 
+            ? `${window.location.protocol}//${window.location.hostname}:8070/api`
+            : '/api';
+        axios.defaults.baseURL = API_BASE_URL;
         axios.defaults.withCredentials = true;
+        
         new Vue({
             el: '#app',
             data: {
@@ -228,7 +235,7 @@
                     this.loading = true;
                     this.error = '';
                     try {
-                        const response = await axios.get('http://localhost:8070/api/users/' + this.userId, {
+                        const response = await axios.get('/users/' + this.userId, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -250,7 +257,7 @@
                     }
                     this.articlesLoading = true;
                     try {
-                        const response = await axios.get('http://localhost:8070/api/content/articles/user/' + this.userId, {
+                        const response = await axios.get('/content/articles/user/' + this.userId, {
                             withCredentials: true,
                             params: {
                                 page: 1,
@@ -303,7 +310,7 @@
                             receiverId: parseInt(this.userId),
                             content: this.sendMessageForm.content
                         };
-                        await axios.post('http://localhost:8070/api/message/send', messageData, {
+                        await axios.post('/message/send', messageData, {
                             withCredentials: true,
                             headers: {
                                 'Authorization': 'Bearer ' + localStorage.getItem('token')

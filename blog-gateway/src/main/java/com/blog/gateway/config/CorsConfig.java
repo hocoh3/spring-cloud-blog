@@ -15,8 +15,8 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // 允许的源
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:8000", "http://localhost:9090"));
+        // 允许的源 - 允许所有来源（开发环境）
+        configuration.addAllowedOriginPattern("*");
         
         // 允许的HTTP方法
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));

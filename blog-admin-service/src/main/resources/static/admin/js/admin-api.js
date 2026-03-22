@@ -81,6 +81,18 @@ const api = {
         return axios.delete(`${GATEWAY_BASE_URL}/api/content/articles/${id}`);
     },
 
+    searchArticles: (keyword, page, size) => {
+        return axios.get(`${GATEWAY_BASE_URL}/api/search/articles`, {
+            params: { keyword, page: page - 1, size }
+        });
+    },
+
+    toggleArticleTop: (id, isTop) => {
+        return axios.put(`${GATEWAY_BASE_URL}/api/content/articles/${id}/top`, null, {
+            params: { isTop }
+        });
+    },
+
     getStatisticsOverview: () => {
         return axios.get(`${API_BASE_URL}/statistics/overview`);
     },

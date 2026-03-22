@@ -1,6 +1,7 @@
 package com.blog.content.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.blog.content.dto.ArticleDTO;
 import com.blog.content.entity.Article;
 import com.blog.content.service.ArticleService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,30 +21,32 @@ public class ArticleController {
 
     // 获取文章列表（分页）- 默认端点
     @GetMapping
-    public ResponseEntity<Page<Article>> getArticles(
+    public ResponseEntity<Page<ArticleDTO>> getArticles(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Long categoryId,
-            @RequestParam(required = false) Integer status) {
-        Page<Article> articlePage = articleService.getArticleList(page, size, categoryId, status);
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "createTime") String sortBy) {
+        Page<ArticleDTO> articlePage = articleService.getArticleListWithDetails(page, size, categoryId, status, sortBy);
         return ResponseEntity.ok(articlePage);
     }
 
     // 获取文章列表（分页）
     @GetMapping("/list")
-    public ResponseEntity<Page<Article>> getArticleList(
+    public ResponseEntity<Page<ArticleDTO>> getArticleList(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Long categoryId,
-            @RequestParam(required = false) Integer status) {
-        Page<Article> articlePage = articleService.getArticleList(page, size, categoryId, status);
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "createTime") String sortBy) {
+        Page<ArticleDTO> articlePage = articleService.getArticleListWithDetails(page, size, categoryId, status, sortBy);
         return ResponseEntity.ok(articlePage);
     }
 
     // 根据ID获取文章详情
     @GetMapping("/{id}")
-    public ResponseEntity<Article> getArticleDetail(@PathVariable Long id) {
-        Article article = articleService.getArticleDetail(id);
+    public ResponseEntity<ArticleDTO> getArticleDetail(@PathVariable Long id) {
+        ArticleDTO article = articleService.getArticleDetailWithDetails(id);
         if (article == null) {
             return ResponseEntity.notFound().build();
         }
@@ -54,11 +57,11 @@ public class ArticleController {
 
     // 根据用户ID获取文章列表
     @GetMapping("/user/{userId}")
-    public ResponseEntity<Page<Article>> getArticlesByUserId(
+    public ResponseEntity<Page<ArticleDTO>> getArticlesByUserId(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size) {
-        Page<Article> articlePage = articleService.getArticlesByUserId(userId, page, size);
+        Page<ArticleDTO> articlePage = articleService.getArticlesByUserIdWithDetails(userId, page, size);
         return ResponseEntity.ok(articlePage);
     }
 
@@ -116,10 +119,10 @@ public class ArticleController {
 
     // 获取热门文章
     @GetMapping("/hot")
-    public ResponseEntity<Page<Article>> getHotArticles(
+    public ResponseEntity<Page<ArticleDTO>> getHotArticles(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "5") Integer size) {
-        Page<Article> articlePage = articleService.getHotArticles(page, size);
+        Page<ArticleDTO> articlePage = articleService.getHotArticlesWithDetails(page, size);
         return ResponseEntity.ok(articlePage);
     }
 
@@ -202,5 +205,15 @@ public class ArticleController {
             @RequestParam(defaultValue = "10") Integer size) {
         Page<Article> articlePage = articleService.getPendingReviewArticles(page, size);
         return ResponseEntity.ok(articlePage);
+    }
+
+    @PutMapping("/{id}/top")
+    public ResponseEntity<String> toggleArticleTop(@PathVariable Long id, @RequestParam Integer isTop) {
+        boolean result = articleService.toggleArticleTop(id, isTop);
+        if (result) {
+            return ResponseEntity.ok(isTop == 1 ? "文章置顶成功" : "取消文章置顶成功");
+        } else {
+            return ResponseEntity.internalServerError().body("操作失败");
+        }
     }
 }

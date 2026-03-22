@@ -123,7 +123,7 @@
                         <div class="contact-info">
                             <p><strong>邮箱：</strong>contact@blog.com</p>
                             <p><strong>微信：</strong>blog-community</p>
-                            <p><strong>GitHub：</strong><a href="#">github.com/blog-community</a></p>
+                            <p><strong>GitHub：</strong><a href="https://github.com/hocoh3/spring-cloud-blog">github.com/hocoh3/spring-cloud-blog</a></p>
                             <p><strong>技术支持：</strong>support@blog.com</p>
                         </div>
                     </div>
@@ -205,7 +205,14 @@
     </div>
 
     <script>
+        // 动态设置 API 基础 URL：如果当前端口是 8000（用户服务），则使用 8070（网关）
+        const currentPort = window.location.port;
+        const API_BASE_URL = currentPort === '8000' 
+            ? `${window.location.protocol}//${window.location.hostname}:8070/api`
+            : '/api';
+        axios.defaults.baseURL = API_BASE_URL;
         axios.defaults.withCredentials = true;
+        
         new Vue({
             el: '#app',
             data: {
@@ -254,7 +261,7 @@
                 async loadHotArticles() {
                     this.hotArticlesLoading = true;
                     try {
-                        const response = await axios.get('http://localhost:8070/api/content/articles/hot');
+                        const response = await axios.get('/content/articles/hot');
                         if (response.data && response.data.records) {
                             this.hotArticles = response.data.records;
                         } else if (response.data) {
@@ -269,7 +276,7 @@
                 async loadCategories() {
                     this.categoriesLoading = true;
                     try {
-                        const response = await axios.get('http://localhost:8070/api/content/categories');
+                        const response = await axios.get('/content/categories');
                         if (response.data && response.data.records) {
                             this.categories = response.data.records;
                         } else if (response.data) {
@@ -284,7 +291,7 @@
                 async loadTags() {
                     this.tagsLoading = true;
                     try {
-                        const response = await axios.get('http://localhost:8070/api/content/tags');
+                        const response = await axios.get('/content/tags');
                         if (response.data && response.data.records) {
                             this.tags = response.data.records;
                         } else if (response.data) {

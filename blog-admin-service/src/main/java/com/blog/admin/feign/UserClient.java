@@ -9,7 +9,8 @@ public interface UserClient {
     @GetMapping("/users")
     String getUserList(
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size);
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String keyword);
 
     @GetMapping("/users/{id}")
     String getUserById(@PathVariable Long id);

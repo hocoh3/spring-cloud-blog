@@ -85,10 +85,13 @@ public class SearchServiceImpl implements SearchService {
                             SearchArticle searchArticle = new SearchArticle();
                             searchArticle.setId(((Number) record.get("id")).longValue());
                             searchArticle.setUserId(record.get("userId") != null ? ((Number) record.get("userId")).longValue() : null);
+                            searchArticle.setAuthorId(record.get("authorId") != null ? ((Number) record.get("authorId")).longValue() : null);
+                            searchArticle.setAuthorName((String) record.get("authorName"));
                             searchArticle.setTitle((String) record.get("title"));
                             searchArticle.setSummary((String) record.get("summary"));
                             searchArticle.setContent((String) record.get("content"));
                             searchArticle.setCategoryId(record.get("categoryId") != null ? ((Number) record.get("categoryId")).longValue() : null);
+                            searchArticle.setCategoryName((String) record.get("categoryName"));
                             searchArticle.setCoverImage((String) record.get("coverImage"));
                             searchArticle.setViewCount(record.get("viewCount") != null ? ((Number) record.get("viewCount")).intValue() : 0);
                             searchArticle.setCommentCount(record.get("commentCount") != null ? ((Number) record.get("commentCount")).intValue() : 0);

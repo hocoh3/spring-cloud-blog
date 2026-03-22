@@ -30,19 +30,27 @@ const ReviewComponent = {
                             <th>作者ID</th>
                             <th>提交时间</th>
                             <th>审核状态</th>
+                            <th>置顶</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="review in reviews" :key="review.id">
                             <td>{{ review.id }}</td>
-                            <td>{{ review.title }}</td>
+                            <td>
+                                {{ review.title }}
+                                <span v-if="review.isTop === 1" class="top-badge">已置顶</span>
+                            </td>
                             <td>{{ review.userId }}</td>
                             <td>{{ formatDate(review.createTime) }}</td>
                             <td>
                                 <span class="status-badge" :class="getStatusClass(review.status)">
                                     {{ getStatusText(review.status) }}
                                 </span>
+                            </td>
+                            <td>
+                                <span v-if="review.isTop === 1" class="top-status">是</span>
+                                <span v-else class="top-status">否</span>
                             </td>
                             <td>
                                 <div class="table-actions">
@@ -60,6 +68,13 @@ const ReviewComponent = {
                                         审核
                                     </button>
                                     <button 
+                                        v-if="review.status === 2"
+                                        class="btn btn-sm btn-warning" 
+                                        @click="toggleTop(review)"
+                                    >
+                                        {{ review.isTop === 1 ? '取消置顶' : '置顶' }}
+                                    </button>
+                                    <button 
                                         class="btn btn-sm btn-danger" 
                                         @click="deleteArticle(review)"
                                     >
@@ -69,7 +84,7 @@ const ReviewComponent = {
                             </td>
                         </tr>
                         <tr v-if="reviews.length === 0">
-                            <td colspan="6" class="empty-state">暂无审核数据</td>
+                            <td colspan="7" class="empty-state">暂无审核数据</td>
                         </tr>
                     </tbody>
                 </table>
@@ -163,8 +178,25 @@ const ReviewComponent = {
         async loadReviews() {
             this.loading = true;
             try {
-                if (this.reviewStatus === '1') {
-                    const response = await api.getPendingReviewArticles(
+                let response;
+                if (this.searchKeyword && this.searchKeyword.trim()) {
+                    response = await api.searchArticles(
+                        this.searchKeyword.trim(),
+                        this.currentPage,
+                        this.pageSize
+                    );
+                    if (response.data && response.data.content) {
+                        this.reviews = response.data.content;
+                        this.totalPages = response.data.totalPages || 1;
+                    } else if (response.data && response.data.records) {
+                        this.reviews = response.data.records;
+                        this.totalPages = Math.ceil(response.data.total / this.pageSize);
+                    } else {
+                        this.reviews = [];
+                        this.totalPages = 1;
+                    }
+                } else if (this.reviewStatus === '1') {
+                    response = await api.getPendingReviewArticles(
                         this.currentPage,
                         this.pageSize
                     );
@@ -172,7 +204,7 @@ const ReviewComponent = {
                     this.totalPages = Math.ceil(response.data.total / this.pageSize);
                 } else if (this.reviewStatus === '2' || this.reviewStatus === '3' || this.reviewStatus === '') {
                     const statusParam = this.reviewStatus === '' ? null : parseInt(this.reviewStatus);
-                    const response = await api.getArticlesByStatus(
+                    response = await api.getArticlesByStatus(
                         this.currentPage,
                         this.pageSize,
                         statusParam
@@ -188,6 +220,23 @@ const ReviewComponent = {
                 alert('加载审核列表失败');
             } finally {
                 this.loading = false;
+            }
+        },
+        async toggleTop(review) {
+            const newTopStatus = review.isTop === 1 ? 0 : 1;
+            const action = newTopStatus === 1 ? '置顶' : '取消置顶';
+            
+            if (!confirm(`确定要${action}文章《${review.title}》吗？`)) {
+                return;
+            }
+            
+            try {
+                await api.toggleArticleTop(review.id, newTopStatus);
+                alert(`${action}成功`);
+                this.loadReviews();
+            } catch (error) {
+                console.error(`${action}失败:`, error);
+                alert(`${action}失败，请重试`);
             }
         },
         changePage(page) {

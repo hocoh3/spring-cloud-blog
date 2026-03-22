@@ -1,5 +1,9 @@
 // API请求封装 - 使用axios
-const API_BASE_URL = 'http://localhost:8070/api';
+// 动态设置 API 基础 URL：如果当前端口是 8000（用户服务），则使用 8070（网关）
+const currentPort = window.location.port;
+const API_BASE_URL = currentPort === '8000' 
+    ? `${window.location.protocol}//${window.location.hostname}:8070/api`
+    : '/api';
 
 // 创建axios实例
 const axiosInstance = axios.create({

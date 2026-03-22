@@ -153,12 +153,14 @@ const UsersComponent = {
         async loadUsers() {
             this.loading = true;
             try {
-                const response = await axios.get('/admin/users', {
-                    params: {
-                        page: this.currentPage,
-                        size: this.pageSize
-                    }
-                });
+                const params = {
+                    page: this.currentPage,
+                    size: this.pageSize
+                };
+                if (this.searchKeyword && this.searchKeyword.trim()) {
+                    params.keyword = this.searchKeyword.trim();
+                }
+                const response = await axios.get('/admin/users', { params });
                 this.users = response.data.records;
                 this.totalPages = Math.ceil(response.data.total / this.pageSize);
             } catch (error) {

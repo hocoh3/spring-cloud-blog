@@ -20,6 +20,9 @@
                     <a href="#" @click.prevent="navigateTo('users')" :class="{ active: currentPage === 'users' }">
                         <span class="nav-text">用户管理</span>
                     </a>
+                    <a href="#" @click.prevent="navigateTo('categories')" :class="{ active: currentPage === 'categories' }">
+                        <span class="nav-text">分类管理</span>
+                    </a>
                     <a href="#" @click.prevent="navigateTo('review')" :class="{ active: currentPage === 'review' }">
                         <span class="nav-text">内容审核</span>
                     </a>
@@ -77,6 +80,7 @@
     <script src="/admin/js/admin-notifications.js"></script>
     <script src="/admin/js/admin-messages.js"></script>
     <script src="/admin/js/admin-comments.js"></script>
+    <script src="/admin/js/admin-categories.js"></script>
     <script src="/admin/js/admin-main.js"></script>
 </body>
 </html>

@@ -32,8 +32,19 @@ public class UserController {
     @GetMapping
     public ResponseEntity<Page<User>> getUserList(
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size) {
-        Page<User> userPage = userService.page(new Page<>(page, size));
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String keyword) {
+        Page<User> userPage;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.like(User::getUsername, keyword)
+                    .or().like(User::getNickname, keyword)
+                    .or().like(User::getEmail, keyword);
+            userPage = userService.page(new Page<>(page, size), queryWrapper);
+        } else {
+            userPage = userService.page(new Page<>(page, size));
+        }
+        userPage.getRecords().forEach(user -> user.setPassword(null));
         return ResponseEntity.ok(userPage);
     }
 
@@ -169,6 +180,34 @@ public class UserController {
         User user = new User();
         user.setId(id);
         user.setStatus(status);
+        user.setUpdateTime(java.time.LocalDateTime.now());
+        boolean result = userService.updateById(user);
+        return ResponseEntity.ok(result);
+    }
+
+    // 修改密码
+    @PutMapping("/{id}/password")
+    public ResponseEntity<Boolean> changePassword(@PathVariable Long id, @RequestBody Map<String, String> passwordRequest) {
+        String currentPassword = passwordRequest.get("currentPassword");
+        String newPassword = passwordRequest.get("newPassword");
+
+        if (currentPassword == null || newPassword == null) {
+            return ResponseEntity.badRequest().body(false);
+        }
+
+        // 获取用户信息
+        User user = userService.getById(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // 验证当前密码
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            return ResponseEntity.badRequest().body(false);
+        }
+
+        // 加密新密码并更新
+        user.setPassword(passwordEncoder.encode(newPassword));
         user.setUpdateTime(java.time.LocalDateTime.now());
         boolean result = userService.updateById(user);
         return ResponseEntity.ok(result);

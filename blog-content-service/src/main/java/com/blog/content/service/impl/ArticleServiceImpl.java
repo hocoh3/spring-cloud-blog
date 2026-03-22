@@ -3,13 +3,18 @@ package com.blog.content.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.blog.content.dto.ArticleDTO;
 import com.blog.content.dto.SearchArticleDTO;
 import com.blog.content.entity.Article;
+import com.blog.content.entity.Category;
 import com.blog.content.feign.DataClient;
 import com.blog.content.feign.InteractionClient;
 import com.blog.content.feign.SearchClient;
+import com.blog.content.feign.UserServiceFeignClient;
 import com.blog.content.mapper.ArticleMapper;
 import com.blog.content.service.ArticleService;
+import com.blog.content.service.CategoryService;
+import com.blog.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -27,19 +33,47 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final SearchClient searchClient;
     private final InteractionClient interactionClient;
     private final DataClient dataClient;
+    private final UserServiceFeignClient userServiceFeignClient;
+    private final CategoryService categoryService;
 
     @Override
     public Page<Article> getArticleList(Integer page, Integer size, Long categoryId, Integer status) {
+        return getArticleList(page, size, categoryId, status, "createTime");
+    }
+
+    @Override
+    public Page<Article> getArticleList(Integer page, Integer size, Long categoryId, Integer status, String sortBy) {
         LambdaQueryWrapper<Article> queryWrapper = new LambdaQueryWrapper<>();
         
         if (status != null) {
             queryWrapper.eq(Article::getStatus, status);
         }
-        
-        queryWrapper.orderByDesc(Article::getIsTop, Article::getCreateTime);
 
         if (categoryId != null) {
             queryWrapper.eq(Article::getCategoryId, categoryId);
+        }
+
+        switch (sortBy) {
+            case "default":
+                queryWrapper.orderByDesc(Article::getIsTop)
+                        .orderByDesc(Article::getViewCount);
+                break;
+            case "viewCount":
+                queryWrapper.orderByDesc(Article::getViewCount);
+                break;
+            case "likeCount":
+                queryWrapper.orderByDesc(Article::getLikeCount);
+                break;
+            case "commentCount":
+                queryWrapper.orderByDesc(Article::getCommentCount);
+                break;
+            case "createTime":
+                queryWrapper.orderByDesc(Article::getCreateTime);
+                break;
+            default:
+                queryWrapper.orderByDesc(Article::getIsTop)
+                        .orderByDesc(Article::getViewCount);
+                break;
         }
 
         return page(new Page<>(page, size), queryWrapper);
@@ -457,5 +491,129 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         }
         
         return result;
+    }
+
+    private ArticleDTO convertToDTO(Article article) {
+        if (article == null) {
+            return null;
+        }
+        
+        ArticleDTO dto = new ArticleDTO();
+        dto.setId(article.getId());
+        dto.setUserId(article.getUserId());
+        dto.setAuthorId(article.getUserId());
+        dto.setTitle(article.getTitle());
+        dto.setSummary(article.getSummary());
+        dto.setContent(article.getContent());
+        dto.setCoverImage(article.getCoverImage());
+        dto.setCategoryId(article.getCategoryId());
+        dto.setViewCount(article.getViewCount());
+        dto.setCommentCount(article.getCommentCount());
+        dto.setLikeCount(article.getLikeCount());
+        dto.setStatus(article.getStatus());
+        dto.setIsFeatured(article.getIsFeatured());
+        dto.setIsTop(article.getIsTop());
+        dto.setCreateTime(article.getCreateTime());
+        dto.setUpdateTime(article.getUpdateTime());
+        
+        if (article.getUserId() != null) {
+            try {
+                User user = userServiceFeignClient.getUserById(article.getUserId());
+                if (user != null) {
+                    dto.setAuthorName(user.getNickname() != null ? user.getNickname() : user.getUsername());
+                }
+            } catch (Exception e) {
+                log.error("获取用户信息失败: userId={}", article.getUserId(), e);
+            }
+        }
+        
+        if (article.getCategoryId() != null) {
+            try {
+                Category category = categoryService.getById(article.getCategoryId());
+                if (category != null) {
+                    dto.setCategoryName(category.getName());
+                }
+            } catch (Exception e) {
+                log.error("获取分类信息失败: categoryId={}", article.getCategoryId(), e);
+            }
+        }
+        
+        return dto;
+    }
+
+    @Override
+    public Page<ArticleDTO> getArticleListWithDetails(Integer page, Integer size, Long categoryId, Integer status) {
+        return getArticleListWithDetails(page, size, categoryId, status, "createTime");
+    }
+
+    @Override
+    public Page<ArticleDTO> getArticleListWithDetails(Integer page, Integer size, Long categoryId, Integer status, String sortBy) {
+        Page<Article> articlePage = getArticleList(page, size, categoryId, status, sortBy);
+        
+        Page<ArticleDTO> dtoPage = new Page<>(articlePage.getCurrent(), articlePage.getSize(), articlePage.getTotal());
+        List<ArticleDTO> dtoList = articlePage.getRecords().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        dtoPage.setRecords(dtoList);
+        
+        return dtoPage;
+    }
+
+    @Override
+    public Page<ArticleDTO> getArticlesByUserIdWithDetails(Long userId, Integer page, Integer size) {
+        Page<Article> articlePage = getArticlesByUserId(userId, page, size);
+        
+        Page<ArticleDTO> dtoPage = new Page<>(articlePage.getCurrent(), articlePage.getSize(), articlePage.getTotal());
+        List<ArticleDTO> dtoList = articlePage.getRecords().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        dtoPage.setRecords(dtoList);
+        
+        return dtoPage;
+    }
+
+    @Override
+    public Page<ArticleDTO> getHotArticlesWithDetails(Integer page, Integer size) {
+        Page<Article> articlePage = getHotArticles(page, size);
+        
+        Page<ArticleDTO> dtoPage = new Page<>(articlePage.getCurrent(), articlePage.getSize(), articlePage.getTotal());
+        List<ArticleDTO> dtoList = articlePage.getRecords().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        dtoPage.setRecords(dtoList);
+        
+        return dtoPage;
+    }
+
+    @Override
+    public ArticleDTO getArticleDetailWithDetails(Long id) {
+        Article article = getArticleDetail(id);
+        return convertToDTO(article);
+    }
+
+    @Override
+    public boolean toggleArticleTop(Long id, Integer isTop) {
+        try {
+            Article article = getById(id);
+            if (article == null) {
+                log.warn("文章不存在，无法设置置顶: id={}", id);
+                return false;
+            }
+
+            article.setIsTop(isTop);
+            article.setUpdateTime(LocalDateTime.now());
+            boolean result = updateById(article);
+
+            if (result) {
+                log.info("文章置顶状态更新成功: id={}, isTop={}", id, isTop);
+            } else {
+                log.error("文章置顶状态更新失败: id={}", id);
+            }
+            
+            return result;
+        } catch (Exception e) {
+            log.error("设置文章置顶状态时发生异常: id={}", id, e);
+            return false;
+        }
     }
 }
